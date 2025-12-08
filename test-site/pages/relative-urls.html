@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relative and Absolute URLs Test Page</title>
+    <meta name="description" content="Testing various URL formats and path types">
+    <base href="/pages/">
+</head>
+<body>
+    <header>
+        <h1>Relative and Absolute URLs</h1>
+        <p>Testing different URL formats for crawler parsing</p>
+    </header>
+
+    <nav>
+        <a href="/">← Back to Home</a>
+    </nav>
+
+    <main>
+        <section>
+            <h2>Absolute URLs</h2>
+            <p>Links with full absolute paths starting with /:</p>
+            <ul>
+                <li><a href="/index.html">Absolute to index.html</a></li>
+                <li><a href="/pages/simple-content.html">Absolute to simple content</a></li>
+                <li><a href="/">Absolute root</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Relative URLs</h2>
+            <p>Links using relative paths:</p>
+            <ul>
+                <li><a href="simple-content.html">Relative - same directory</a></li>
+                <li><a href="./links-test.html">Relative - dot notation</a></li>
+                <li><a href="../index.html">Relative - parent directory</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Protocol Relative URLs</h2>
+            <p>URLs without protocol (works on http/https):</p>
+            <ul>
+                <li><a href="//example.com/page">Protocol relative external</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>URLs with Query Parameters</h2>
+            <ul>
+                <li><a href="simple-content.html?v=1">With version parameter</a></li>
+                <li><a href="/pages/links-test.html?page=1&sort=asc">Multiple parameters</a></li>
+                <li><a href="/index.html?id=123&name=test&value=abc">Complex parameters</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>URLs with Fragments</h2>
+            <ul>
+                <li><a href="#section1">Fragment only (this page)</a></li>
+                <li><a href="simple-content.html#heading">Fragment on other page</a></li>
+                <li><a href="/pages/links-test.html#external-links">Fragment with absolute path</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>URLs with Special Cases</h2>
+            <ul>
+                <li><a href="">Current page</a></li>
+                <li><a href=".">Current directory</a></li>
+                <li><a href="/">Root directory</a></li>
+                <li><a href="/pages/">Pages directory</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Image Sources with Various Paths</h2>
+            <ul>
+                <li><img src="/images/test.jpg" alt="Absolute path image"></li>
+                <li><img src="../images/test.jpg" alt="Relative path image"></li>
+                <li><img src="images/test.jpg" alt="Same directory image"></li>
+            </ul>
+        </section>
+
+        <section id="section1">
+            <h2>Section 1</h2>
+            <p>This is the target of fragment navigation.</p>
+        </section>
+
+        <section>
+            <h2>Navigation</h2>
+            <p><a href="/">Home</a> | <a href="forms.html">Previous</a> | <a href="special-chars.html">Next</a></p>
+        </section>
+    </main>
+
+    <footer>
+        <p>Page last updated: 2025-12-08</p>
+    </footer>
+</body>
+</html>

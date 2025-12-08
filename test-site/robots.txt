@@ -1,0 +1,21 @@
+# Web Crawler Test Site - robots.txt
+
+# Allow all crawlers to index this test site
+User-agent: *
+Allow: /
+
+# Disallow specific test paths (for testing robots.txt parsing)
+Disallow: /admin/
+Disallow: /private/
+Disallow: /temp/
+
+# Slow down aggressive crawlers
+User-agent: BadBot
+Disallow: /
+
+# Set crawl delay for all bots
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://example.com/sitemap.xml
+Sitemap: /sitemap.xml

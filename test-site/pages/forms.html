@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forms Test Page</title>
+    <meta name="description" content="Testing form elements and inputs for web crawlers">
+</head>
+<body>
+    <header>
+        <h1>Forms Test Page</h1>
+        <p>This page contains various form elements for testing crawler handling</p>
+    </header>
+
+    <nav>
+        <a href="/">← Back to Home</a>
+    </nav>
+
+    <main>
+        <section>
+            <h2>Test Form</h2>
+            <form action="/submit" method="POST" id="test-form">
+                <fieldset>
+                    <legend>Personal Information</legend>
+                    
+                    <label for="name">Name:</label>
+                    <input type="text" id="name" name="name" placeholder="Enter your name" required>
+                    
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                    
+                    <label for="phone">Phone:</label>
+                    <input type="tel" id="phone" name="phone" placeholder="Enter your phone">
+                </fieldset>
+
+                <fieldset>
+                    <legend>Options</legend>
+                    
+                    <label for="country">Country:</label>
+                    <select id="country" name="country">
+                        <option value="">Select a country</option>
+                        <option value="us">United States</option>
+                        <option value="uk">United Kingdom</option>
+                        <option value="ca">Canada</option>
+                        <option value="au">Australia</option>
+                    </select>
+
+                    <h3>Checkboxes</h3>
+                    <input type="checkbox" id="agree" name="agree" value="yes">
+                    <label for="agree">I agree to the terms</label>
+                    <br>
+                    <input type="checkbox" id="subscribe" name="subscribe" value="yes">
+                    <label for="subscribe">Subscribe to newsletter</label>
+
+                    <h3>Radio Buttons</h3>
+                    <input type="radio" id="male" name="gender" value="male">
+                    <label for="male">Male</label>
+                    <br>
+                    <input type="radio" id="female" name="gender" value="female">
+                    <label for="female">Female</label>
+                    <br>
+                    <input type="radio" id="other" name="gender" value="other">
+                    <label for="other">Other</label>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Additional Information</legend>
+                    
+                    <label for="message">Message:</label>
+                    <textarea id="message" name="message" rows="4" cols="50" placeholder="Enter your message"></textarea>
+
+                    <label for="date">Date:</label>
+                    <input type="date" id="date" name="date">
+
+                    <label for="time">Time:</label>
+                    <input type="time" id="time" name="time">
+
+                    <label for="number">Number (1-10):</label>
+                    <input type="number" id="number" name="number" min="1" max="10">
+
+                    <label for="range">Range Slider:</label>
+                    <input type="range" id="range" name="range" min="0" max="100">
+
+                    <label for="color">Color:</label>
+                    <input type="color" id="color" name="color">
+
+                    <label for="file">File Upload:</label>
+                    <input type="file" id="file" name="file">
+                </fieldset>
+
+                <fieldset>
+                    <legend>Submit Options</legend>
+                    <button type="submit">Submit Form</button>
+                    <button type="reset">Reset Form</button>
+                    <button type="button">Button</button>
+                    <input type="submit" value="Submit as Input">
+                </fieldset>
+            </form>
+        </section>
+
+        <section>
+            <h2>Other Input Elements</h2>
+            <form>
+                <input type="search" placeholder="Search...">
+                <input type="url" placeholder="Enter URL">
+                <input type="password" placeholder="Enter password">
+                <input type="week">
+                <input type="month">
+                <input type="hidden" name="hidden" value="hidden-value">
+            </form>
+        </section>
+
+        <section>
+            <h2>Navigation</h2>
+            <p><a href="/">Home</a> | <a href="/pages/metadata.html">Previous</a> | <a href="/pages/relative-urls.html">Next</a></p>
+        </section>
+    </main>
+
+    <footer>
+        <p>Page last updated: 2025-12-08</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Links Test Page</title>
+    <meta name="description" content="Testing various link types for web crawlers">
+</head>
+<body>
+    <header>
+        <h1>Links Test Page</h1>
+        <p>Testing various link types and configurations</p>
+    </header>
+
+    <nav>
+        <a href="/">← Back to Home</a>
+    </nav>
+
+    <main>
+        <section>
+            <h2>Internal Links</h2>
+            <p>These are links to pages within this site:</p>
+            <ul>
+                <li><a href="/">Home Page</a></li>
+                <li><a href="/pages/simple-content.html">Simple Content</a></li>
+                <li><a href="/pages/metadata.html">Metadata Page</a></li>
+                <li><a href="/pages/forms.html">Forms Page</a></li>
+                <li><a href="/pages/relative-urls.html">Relative URLs</a></li>
+                <li><a href="/pages/special-chars.html">Special Characters</a></li>
+                <li><a href="/pages/images.html">Images Page</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Relative Links</h2>
+            <p>These links use relative paths:</p>
+            <ul>
+                <li><a href="../">Parent Directory</a></li>
+                <li><a href="./simple-content.html">Same Directory File</a></li>
+                <li><a href="simple-content.html">Without Dot Notation</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>External Links</h2>
+            <p>These are links to external websites:</p>
+            <ul>
+                <li><a href="https://www.example.com">Example.com</a></li>
+                <li><a href="https://www.google.com">Google</a></li>
+                <li><a href="https://www.wikipedia.org">Wikipedia</a></li>
+                <li><a href="https://github.com">GitHub</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Broken/Dead Links</h2>
+            <p>These links point to pages that don't exist (for testing error handling):</p>
+            <ul>
+                <li><a href="/pages/nonexistent.html">Nonexistent Page</a></li>
+                <li><a href="/broken/path/to/file.html">Broken Path</a></li>
+                <li><a href="/pages/404-page.html">404 Page</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Link Attributes</h2>
+            <p>Links with various attributes:</p>
+            <ul>
+                <li><a href="/" title="Home Page Title">Link with Title</a></li>
+                <li><a href="/" target="_blank">Link with Target Blank</a></li>
+                <li><a href="/" rel="nofollow">Link with NoFollow</a></li>
+                <li><a href="/" rel="noopener">Link with NoOpener</a></li>
+                <li><a href="/" class="external-link">Link with Class</a></li>
+                <li><a href="/" id="special-link">Link with ID</a></li>
+                <li><a href="/" data-crawler="skip">Link with Data Attribute</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Anchor Links (Internal Navigation)</h2>
+            <p>Links to sections within this page:</p>
+            <ul>
+                <li><a href="#internal-links">Jump to Internal Links</a></li>
+                <li><a href="#relative-links">Jump to Relative Links</a></li>
+                <li><a href="#external-links">Jump to External Links</a></li>
+                <li><a href="#broken-links">Jump to Broken Links</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Other Link Types</h2>
+            <ul>
+                <li><a href="mailto:test@example.com">Email Link</a></li>
+                <li><a href="tel:+1234567890">Phone Link</a></li>
+                <li><a href="javascript:void(0)">JavaScript Link</a></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Button Links</h2>
+            <p>Links styled as buttons:</p>
+            <button><a href="/">Button Link</a></button>
+        </section>
+
+        <nav>
+            <p><a href="/">Home</a> | <a href="/pages/metadata.html">Next Page</a></p>
+        </nav>
+    </main>
+
+    <footer>
+        <p>Page last updated: 2025-12-08</p>
+    </footer>
+</body>
+</html>

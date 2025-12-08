@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Images & Media Test Page</title>
+    <meta name="description" content="Testing images, videos, and multimedia content">
+</head>
+<body>
+    <header>
+        <h1>Images & Media Test Page</h1>
+        <p>Testing various multimedia elements and attributes</p>
+    </header>
+
+    <nav>
+        <a href="/">← Back to Home</a>
+    </nav>
+
+    <main>
+        <section>
+            <h2>Images with Various Attributes</h2>
+            <p>Different image configurations:</p>
+
+            <h3>Basic Image</h3>
+            <img src="/images/sample.jpg" alt="Sample image">
+
+            <h3>Image with Title</h3>
+            <img src="/images/test.png" alt="Test image" title="This is a test image">
+
+            <h3>Image with Dimensions</h3>
+            <img src="/images/banner.jpg" alt="Banner" width="800" height="600">
+
+            <h3>Image with Srcset (Responsive)</h3>
+            <img src="/images/small.jpg" 
+                 srcset="/images/small.jpg 480w, /images/medium.jpg 768w, /images/large.jpg 1024w"
+                 alt="Responsive image">
+
+            <h3>Image with Picture Element</h3>
+            <picture>
+                <source srcset="/images/large.jpg" media="(min-width: 1024px)">
+                <source srcset="/images/medium.jpg" media="(min-width: 768px)">
+                <img src="/images/small.jpg" alt="Picture element image">
+            </picture>
+
+            <h3>Image in Figure</h3>
+            <figure>
+                <img src="/images/diagram.jpg" alt="Diagram">
+                <figcaption>This is a diagram explaining something</figcaption>
+            </figure>
+        </section>
+
+        <section>
+            <h2>Image Links</h2>
+            <p>Images used as links:</p>
+            <a href="/pages/simple-content.html">
+                <img src="/images/icon.png" alt="Go to simple content" width="50" height="50">
+            </a>
+        </section>
+
+        <section>
+            <h2>Video Elements</h2>
+            <p>Testing video content:</p>
+            
+            <h3>Video with Controls</h3>
+            <video width="320" height="240" controls>
+                <source src="/videos/sample.mp4" type="video/mp4">
+                <source src="/videos/sample.webm" type="video/webm">
+                Your browser does not support the video tag.
+            </video>
+
+            <h3>Video with Poster and Autoplay</h3>
+            <video width="400" height="300" poster="/images/poster.jpg" controls>
+                <source src="/videos/demo.mp4" type="video/mp4">
+            </video>
+        </section>
+
+        <section>
+            <h2>Audio Elements</h2>
+            <p>Testing audio content:</p>
+            
+            <h3>Audio with Controls</h3>
+            <audio controls>
+                <source src="/audio/sample.mp3" type="audio/mpeg">
+                <source src="/audio/sample.ogg" type="audio/ogg">
+                Your browser does not support the audio element.
+            </audio>
+
+            <h3>Audio with Autoplay</h3>
+            <audio controls autoplay>
+                <source src="/audio/background.mp3" type="audio/mpeg">
+            </audio>
+        </section>
+
+        <section>
+            <h2>Embedded Content</h2>
+            <p>Testing embedded external content:</p>
+
+            <h3>Iframe</h3>
+            <iframe width="560" height="315" src="/embeds/content.html" title="Embedded content"></iframe>
+
+            <h3>SVG Inline</h3>
+            <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="40" fill="blue" />
+            </svg>
+
+            <h3>SVG External Source</h3>
+            <img src="/images/diagram.svg" alt="SVG diagram">
+        </section>
+
+        <section>
+            <h2>Navigation</h2>
+            <p><a href="/">Home</a> | <a href="special-chars.html">Previous</a></p>
+        </section>
+    </main>
+
+    <footer>
+        <p>Page last updated: 2025-12-08</p>
+    </footer>
+</body>
+</html>
