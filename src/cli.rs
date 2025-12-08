@@ -13,40 +13,42 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
             rate_limit: _,
             output_format,
         } => {
-
             let client = ClientBuilder::new()
-              .user_agent(user_agent)
-              .timeout(Duration::from_secs(timeout as u64))
-              .danger_accept_invalid_certs(false)
-              .build()?;
+                .user_agent(user_agent)
+                .timeout(Duration::from_secs(timeout as u64))
+                .danger_accept_invalid_certs(false)
+                .build()?;
 
             let page = FetchedPage::fetch(&client, &url).await?;
 
             match output_format {
-              crate::commands::OutputFormat::Json => {
-                let json_output = serde_json::json!({
-                    "url": page.url.to_string(),
-                    "final_url": page.final_url.to_string(),
-                    "status_code": page.status_code,
-                    "content_type": page.content_type,
-                    "content_length": page.html_content.len(),
-                    "html":page.html_content,
-                    "fetched_duration_ms": page.fetched_duration_ms,
-                    "timestamp": page.timestamp.to_rfc3339(),
-                });
-                println!("{}", serde_json::to_string_pretty(&json_output)?);
-              }
-              crate::commands::OutputFormat::Text => {
-                println!("╭─ Fetch Results ────────────────────────────────────────────");
-                println!("├─ URL:                  {}", page.url);
-                println!("├─ Final URL:            {}", page.final_url);
-                println!("├─ Status Code:          {}", page.status_code);
-                println!("├─ Content-Type:         {}", page.content_type.as_deref().unwrap_or("unknown"));
-                println!("├─ Content Size:         {} bytes", page.html_content.len());
-                println!("├─ Fetch Duration:       {} ms", page.fetched_duration_ms);
-                println!("├─ Timestamp:            {}", page.timestamp.to_rfc3339());
-                println!("╰─────────────────────────────────────────────────────────────");
-              }
+                crate::commands::OutputFormat::Json => {
+                    let json_output = serde_json::json!({
+                        "url": page.url.to_string(),
+                        "final_url": page.final_url.to_string(),
+                        "status_code": page.status_code,
+                        "content_type": page.content_type,
+                        "content_length": page.html_content.len(),
+                        "html":page.html_content,
+                        "fetched_duration_ms": page.fetched_duration_ms,
+                        "timestamp": page.timestamp.to_rfc3339(),
+                    });
+                    println!("{}", serde_json::to_string_pretty(&json_output)?);
+                }
+                crate::commands::OutputFormat::Text => {
+                    println!("╭─ Fetch Results ────────────────────────────────────────────");
+                    println!("├─ URL:                  {}", page.url);
+                    println!("├─ Final URL:            {}", page.final_url);
+                    println!("├─ Status Code:          {}", page.status_code);
+                    println!(
+                        "├─ Content-Type:         {}",
+                        page.content_type.as_deref().unwrap_or("unknown")
+                    );
+                    println!("├─ Content Size:         {} bytes", page.html_content.len());
+                    println!("├─ Fetch Duration:       {} ms", page.fetched_duration_ms);
+                    println!("├─ Timestamp:            {}", page.timestamp.to_rfc3339());
+                    println!("╰─────────────────────────────────────────────────────────────");
+                }
             }
         }
     }

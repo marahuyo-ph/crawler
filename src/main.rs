@@ -4,6 +4,7 @@ use crate::{cli::execute_commands, commands::Cli};
 
 mod cli;
 mod commands;
+pub mod extract_links;
 mod fetch;
 mod utils;
 
