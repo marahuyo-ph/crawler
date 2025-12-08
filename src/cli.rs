@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use reqwest::ClientBuilder;
 
-use crate::{commands::Commands, extract_links::ExtractLinks, fetch::FetchedPage};
+use crate::{commands::Commands, extract_links::ExtractLinks, extract_metadata::PageMetadata, fetch::FetchedPage};
 
 pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
     match command {
@@ -120,7 +120,9 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                     }
                     crate::commands::OutputFormat::Text => {
                         if internal_only {
-                            println!("╭─ Internal Links ───────────────────────────────────────────");
+                            println!(
+                                "╭─ Internal Links ───────────────────────────────────────────"
+                            );
                             println!("├─ URL:    {}", page.final_url);
                             println!("├─ Count:  {}", links.internal.len());
                             println!("├─ Links:");
@@ -139,9 +141,13 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                                     println!("│  └─ Target: {}", target);
                                 }
                             }
-                            println!("╰─────────────────────────────────────────────────────────────");
+                            println!(
+                                "╰─────────────────────────────────────────────────────────────"
+                            );
                         } else if external_only {
-                            println!("╭─ External Links ───────────────────────────────────────────");
+                            println!(
+                                "╭─ External Links ───────────────────────────────────────────"
+                            );
                             println!("├─ URL:    {}", page.final_url);
                             println!("├─ Count:  {}", links.external.len());
                             println!("├─ Links:");
@@ -160,12 +166,16 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                                     println!("│  └─ Target: {}", target);
                                 }
                             }
-                            println!("╰─────────────────────────────────────────────────────────────");
+                            println!(
+                                "╰─────────────────────────────────────────────────────────────"
+                            );
                         } else {
-                            println!("╭─ All Links ────────────────────────────────────────────────");
+                            println!(
+                                "╭─ All Links ────────────────────────────────────────────────"
+                            );
                             println!("├─ URL:    {}", page.final_url);
                             println!("│");
-                            
+
                             if !links.internal.is_empty() {
                                 println!("├─ Internal Links ({}):", links.internal.len());
                                 for link in &links.internal {
@@ -230,8 +240,254 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                                     }
                                 }
                             }
-                            println!("╰─────────────────────────────────────────────────────────────");
+                            println!(
+                                "╰─────────────────────────────────────────────────────────────"
+                            );
                         }
+                    }
+                }
+            } else {
+                return Err(anyhow::anyhow!(
+                    "HTML parsing failed: unable to parse content from {}",
+                    page.final_url
+                ));
+            }
+        },
+        Commands::ExtractMetadata { url, user_agent, timeout, rate_limit:_, include, output_format } => {
+            
+            let client = ClientBuilder::new()
+                .user_agent(user_agent)
+                .timeout(Duration::from_secs(timeout as u64))
+                .danger_accept_invalid_certs(false)
+                .build()?;
+
+            let page = FetchedPage::fetch(&client, &url).await?;
+
+            if let Some(document) = page.parsed_html {
+
+                let metadata = PageMetadata::extract(&document)?;
+
+                match output_format {
+                    crate::commands::OutputFormat::Json => {
+                        let mut json_output = serde_json::json!({
+                            "url": page.final_url.to_string(),
+                            "basic": {
+                                "title": metadata.basic.title,
+                                "description": metadata.basic.description,
+                                "keywords": metadata.basic.keywords,
+                                "charset": metadata.basic.charset,
+                                "language": metadata.basic.language,
+                            },
+                            "seo": {
+                                "robots": metadata.seo.robots,
+                                "canonical": metadata.seo.canonical.map(|u| u.to_string()),
+                                "author": metadata.seo.author,
+                                "publisher": metadata.seo.publisher,
+                                "creator": metadata.seo.creator,
+                            },
+                            "open_graph": {
+                                "og_type": metadata.open_graph.og_type,
+                                "og_title": metadata.open_graph.og_title,
+                                "og_description": metadata.open_graph.og_description,
+                                "og_url": metadata.open_graph.og_url.map(|u| u.to_string()),
+                                "og_image": metadata.open_graph.og_image.map(|u| u.to_string()),
+                                "og_site_name": metadata.open_graph.og_site_name,
+                                "og_locale": metadata.open_graph.og_locale,
+                            },
+                            "twitter_card": {
+                                "twitter_card": metadata.twitter_card.twitter_card,
+                                "twitter_title": metadata.twitter_card.twitter_title,
+                                "twitter_description": metadata.twitter_card.twitter_description,
+                                "twitter_url": metadata.twitter_card.twitter_url.map(|u| u.to_string()),
+                                "twitter_image": metadata.twitter_card.twitter_image.map(|u| u.to_string()),
+                            },
+                            "viewport": {
+                                "viewport": metadata.viewport.viewport,
+                                "theme_color": metadata.viewport.theme_color,
+                                "apple_mobile_web_app_capable": metadata.viewport.apple_mobile_web_app_capable,
+                                "apple_mobile_web_app_status_bar_style": metadata.viewport.apple_mobile_web_app_status_bar_style,
+                            },
+                        });
+
+                        // Add optional fields if requested
+                        if include.iter().any(|i| i.to_lowercase() == "hreflang" || i.to_lowercase() == "links") {
+                            let hreflang: std::collections::HashMap<String, String> = metadata
+                                .links
+                                .alternate_languages
+                                .iter()
+                                .map(|(k, v)| (k.clone(), v.to_string()))
+                                .collect();
+                            json_output["links"]["alternate_languages"] = serde_json::to_value(hreflang)?;
+                        }
+
+                        if include.iter().any(|i| i.to_lowercase() == "canonical" || i.to_lowercase() == "links") {
+                            json_output["links"]["canonical"] = serde_json::to_value(metadata.links.canonical.map(|u| u.to_string()))?;
+                        }
+
+                        if include.iter().any(|i| i.to_lowercase() == "author" || i.to_lowercase() == "links") {
+                            json_output["links"]["prev"] = serde_json::to_value(metadata.links.prev.map(|u| u.to_string()))?;
+                            json_output["links"]["next"] = serde_json::to_value(metadata.links.next.map(|u| u.to_string()))?;
+                        }
+
+                        if include.iter().any(|i| i.to_lowercase() == "publisher" || i.to_lowercase() == "links") {
+                            json_output["links"]["icon"] = serde_json::to_value(metadata.links.icon.map(|u| u.to_string()))?;
+                            json_output["links"]["apple_touch_icon"] = serde_json::to_value(metadata.links.apple_touch_icon.map(|u| u.to_string()))?;
+                        }
+
+                        println!("{}", serde_json::to_string_pretty(&json_output)?);
+                    }
+                    crate::commands::OutputFormat::Text => {
+                        println!("╭─ Metadata ─────────────────────────────────────────────────");
+                        println!("├─ URL: {}", page.final_url);
+                        println!("│");
+
+                        // Basic Metadata
+                        println!("├─ Basic Metadata:");
+                        if let Some(title) = &metadata.basic.title {
+                            println!("│  ├─ Title:       {}", title);
+                        }
+                        if let Some(desc) = &metadata.basic.description {
+                            println!("│  ├─ Description: {}", desc);
+                        }
+                        if let Some(keywords) = &metadata.basic.keywords {
+                            println!("│  ├─ Keywords:    {}", keywords.join(", "));
+                        }
+                        if let Some(charset) = &metadata.basic.charset {
+                            println!("│  ├─ Charset:     {}", charset);
+                        }
+                        if let Some(lang) = &metadata.basic.language {
+                            println!("│  └─ Language:    {}", lang);
+                        }
+                        println!("│");
+
+                        // SEO Metadata
+                        println!("├─ SEO Metadata:");
+                        if let Some(robots) = &metadata.seo.robots {
+                            println!("│  ├─ Robots:      {}", robots);
+                        }
+                        if let Some(canonical) = &metadata.seo.canonical {
+                            println!("│  ├─ Canonical:   {}", canonical);
+                        }
+                        if let Some(author) = &metadata.seo.author {
+                            println!("│  ├─ Author:      {}", author);
+                        }
+                        if let Some(publisher) = &metadata.seo.publisher {
+                            println!("│  ├─ Publisher:   {}", publisher);
+                        }
+                        if let Some(creator) = &metadata.seo.creator {
+                            println!("│  └─ Creator:     {}", creator);
+                        }
+                        println!("│");
+
+                        // Open Graph
+                        if metadata.open_graph.og_type.is_some()
+                            || metadata.open_graph.og_title.is_some()
+                            || metadata.open_graph.og_description.is_some()
+                        {
+                            println!("├─ Open Graph:");
+                            if let Some(og_type) = &metadata.open_graph.og_type {
+                                println!("│  ├─ Type:        {}", og_type);
+                            }
+                            if let Some(og_title) = &metadata.open_graph.og_title {
+                                println!("│  ├─ Title:       {}", og_title);
+                            }
+                            if let Some(og_desc) = &metadata.open_graph.og_description {
+                                println!("│  ├─ Description: {}", og_desc);
+                            }
+                            if let Some(og_url) = &metadata.open_graph.og_url {
+                                println!("│  ├─ URL:         {}", og_url);
+                            }
+                            if let Some(og_image) = &metadata.open_graph.og_image {
+                                println!("│  ├─ Image:       {}", og_image);
+                            }
+                            if let Some(og_site) = &metadata.open_graph.og_site_name {
+                                println!("│  ├─ Site Name:   {}", og_site);
+                            }
+                            if let Some(og_locale) = &metadata.open_graph.og_locale {
+                                println!("│  └─ Locale:      {}", og_locale);
+                            }
+                            println!("│");
+                        }
+
+                        // Twitter Card
+                        if metadata.twitter_card.twitter_card.is_some()
+                            || metadata.twitter_card.twitter_title.is_some()
+                            || metadata.twitter_card.twitter_description.is_some()
+                        {
+                            println!("├─ Twitter Card:");
+                            if let Some(card) = &metadata.twitter_card.twitter_card {
+                                println!("│  ├─ Card Type:   {}", card);
+                            }
+                            if let Some(tw_title) = &metadata.twitter_card.twitter_title {
+                                println!("│  ├─ Title:       {}", tw_title);
+                            }
+                            if let Some(tw_desc) = &metadata.twitter_card.twitter_description {
+                                println!("│  ├─ Description: {}", tw_desc);
+                            }
+                            if let Some(tw_url) = &metadata.twitter_card.twitter_url {
+                                println!("│  ├─ URL:         {}", tw_url);
+                            }
+                            if let Some(tw_image) = &metadata.twitter_card.twitter_image {
+                                println!("│  └─ Image:       {}", tw_image);
+                            }
+                            println!("│");
+                        }
+
+                        // Viewport
+                        if metadata.viewport.viewport.is_some()
+                            || metadata.viewport.theme_color.is_some()
+                            || metadata.viewport.apple_mobile_web_app_capable.is_some()
+                        {
+                            println!("├─ Viewport & Mobile:");
+                            if let Some(vp) = &metadata.viewport.viewport {
+                                println!("│  ├─ Viewport:                {}", vp);
+                            }
+                            if let Some(theme) = &metadata.viewport.theme_color {
+                                println!("│  ├─ Theme Color:             {}", theme);
+                            }
+                            if let Some(capable) = metadata.viewport.apple_mobile_web_app_capable {
+                                println!("│  ├─ Mobile Web App Capable:  {}", capable);
+                            }
+                            if let Some(status) = &metadata.viewport.apple_mobile_web_app_status_bar_style {
+                                println!("│  └─ Status Bar Style:        {}", status);
+                            }
+                            println!("│");
+                        }
+
+                        // Link Metadata (if requested)
+                        if include.contains(&"links".to_string())
+                            || include.iter().any(|i| {
+                                i.to_lowercase() == "hreflang"
+                                    || i.to_lowercase() == "canonical"
+                                    || i.to_lowercase() == "author"
+                                    || i.to_lowercase() == "publisher"
+                            })
+                        {
+                            println!("├─ Links:");
+                            if let Some(canonical) = &metadata.links.canonical {
+                                println!("│  ├─ Canonical:        {}", canonical);
+                            }
+                            if !metadata.links.alternate_languages.is_empty() {
+                                println!("│  ├─ Alternate Languages:");
+                                for (lang, url) in &metadata.links.alternate_languages {
+                                    println!("│  │  ├─ {}: {}", lang, url);
+                                }
+                            }
+                            if let Some(prev) = &metadata.links.prev {
+                                println!("│  ├─ Previous:         {}", prev);
+                            }
+                            if let Some(next) = &metadata.links.next {
+                                println!("│  ├─ Next:             {}", next);
+                            }
+                            if let Some(icon) = &metadata.links.icon {
+                                println!("│  ├─ Icon:             {}", icon);
+                            }
+                            if let Some(apple_icon) = &metadata.links.apple_touch_icon {
+                                println!("│  └─ Apple Touch Icon: {}", apple_icon);
+                            }
+                        }
+
+                        println!("╰─────────────────────────────────────────────────────────────");
                     }
                 }
             } else {
