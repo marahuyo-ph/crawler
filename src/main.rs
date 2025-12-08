@@ -5,6 +5,7 @@ use crate::{cli::execute_commands, commands::Cli};
 mod cli;
 mod commands;
 mod fetch;
+mod utils;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

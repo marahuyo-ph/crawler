@@ -1,4 +1,8 @@
-use crate::{commands::Commands, fetch::execute_fetch};
+use std::time::Duration;
+
+use reqwest::ClientBuilder;
+
+use crate::{commands::Commands, fetch::FetchedPage};
 
 pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
     match command {
@@ -9,14 +13,13 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
             rate_limit,
             output_format,
         } => {
-            execute_fetch(Commands::Fetch {
-                url,
-                user_agent,
-                timeout,
-                rate_limit,
-                output_format,
-            })
-            .await?;
+
+            let client = ClientBuilder::new()
+              .user_agent(user_agent)
+              .timeout(Duration::from_secs(timeout as u64))
+              .build()?;
+
+            let page = FetchedPage::fetch(&client, &url).await?;
         }
     }
 
@@ -25,47 +28,11 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod test {
-    use std::process::{Child, Command};
-    use std::thread;
-    use std::time::Duration;
-
     use clap::Parser;
 
     use crate::cli::execute_commands;
     use crate::commands::Cli;
-
-    pub struct PythonServer {
-        port: i16,
-        child: Option<Child>,
-    }
-
-    impl PythonServer {
-        fn new(port: i16) -> Self {
-            Self { port, child: None }
-        }
-
-        fn run(&mut self) -> anyhow::Result<()> {
-            let child = Command::new("python3")
-                .arg("-m")
-                .arg("http.server")
-                .arg(self.port.to_string())
-                .current_dir("test-site")
-                .spawn()?;
-
-            self.child = Some(child);
-            thread::sleep(Duration::from_millis(500));
-            Ok(())
-        }
-    }
-
-    impl Drop for PythonServer {
-        fn drop(&mut self) {
-            if let Some(mut child) = self.child.take() {
-                let _ = child.kill();
-                let _ = child.wait();
-            }
-        }
-    }
+    use crate::utils::PythonServer;
 
     #[rstest::fixture]
     fn python_server() -> PythonServer {

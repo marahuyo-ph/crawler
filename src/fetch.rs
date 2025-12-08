@@ -2,7 +2,7 @@ use std::time::{Duration, SystemTime};
 
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
-use reqwest::StatusCode;
+use reqwest::{Client, StatusCode};
 use url::Url;
 
 use crate::commands::Commands;
@@ -19,21 +19,10 @@ pub struct FetchedPage {
     pub timestamp: DateTime<Utc>,
 }
 
-pub async fn execute_fetch(
-    Commands::Fetch {
-        url,
-        user_agent,
-        timeout,
-        rate_limit,
-        output_format,
-    }: Commands,
-) -> anyhow::Result<FetchedPage> {
-    let client = reqwest::ClientBuilder::new()
-        .user_agent(user_agent)
-        .timeout(Duration::from_secs(timeout as u64))
-        .build()?;
+impl FetchedPage {
 
-    // time start
+  pub async fn fetch(client:&Client,url:&Url) -> anyhow::Result<Self> {
+
     let now = SystemTime::now();
 
     let response = client.get(url.clone()).send().await?;
@@ -60,7 +49,7 @@ pub async fn execute_fetch(
 
     Ok(FetchedPage {
         url: url.clone(),
-        final_url: url,
+        final_url: url.clone(),
         status_code,
         content_type: Some(content_type),
         html_content: html.clone(),
@@ -68,4 +57,5 @@ pub async fn execute_fetch(
         fetched_duration_ms: duration.as_millis(),
         timestamp,
     })
+  }
 }
