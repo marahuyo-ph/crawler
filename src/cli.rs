@@ -69,23 +69,26 @@ mod test {
 
     #[rstest::fixture]
     fn python_server() -> PythonServer {
-      PythonServer::new(9001)
+        PythonServer::new(9001)
     }
 
     #[rstest::rstest]
     #[case("crawler fetch http://localhost:9001")]
     #[tokio::test]
-    async fn test_cli(mut python_server: PythonServer,#[case] command:&str) -> anyhow::Result<()> {
-      python_server.run()?;
+    async fn test_cli(
+        mut python_server: PythonServer,
+        #[case] command: &str,
+    ) -> anyhow::Result<()> {
+        python_server.run()?;
 
-      let args: Vec<&str> = command.split_whitespace().collect();
-      let cli = Cli::parse_from(&args);
+        let args: Vec<&str> = command.split_whitespace().collect();
+        let cli = Cli::parse_from(&args);
 
-      if let Err(e) = execute_commands(cli.command).await {
-        drop(python_server);
-        return Err(e);
-      }
+        if let Err(e) = execute_commands(cli.command).await {
+            drop(python_server);
+            return Err(e);
+        }
 
-      Ok(())
+        Ok(())
     }
 }

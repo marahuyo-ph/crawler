@@ -24,8 +24,7 @@ pub async fn execute_fetch(
         output_format,
     }: Commands,
 ) -> anyhow::Result<()> {
-
-    println!("trying to fetch {}",url);
+    println!("trying to fetch {}", url);
 
     Ok(())
 }
