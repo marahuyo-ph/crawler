@@ -1,4 +1,7 @@
+use std::time::{Duration, SystemTime};
+
 use chrono::{DateTime, Utc};
+use reqwest::StatusCode;
 use url::Url;
 
 use crate::commands::Commands;
@@ -24,7 +27,24 @@ pub async fn execute_fetch(
         output_format,
     }: Commands,
 ) -> anyhow::Result<()> {
-    println!("trying to fetch {}", url);
+    let client = reqwest::ClientBuilder::new()
+        .user_agent(user_agent)
+        .timeout(Duration::from_secs(timeout as u64))
+        .build()?;
+
+    // time start
+    let now = SystemTime::now();
+
+    let response = client.get(url).send().await?;
+
+    let duration = now.elapsed()?;
+
+    // HTTP Status Codes: 200 OK, 301/302 Redirects, 404 Not Found, 500 Internal Server Error, 503 Service Unavailable
+    if response.status() != StatusCode::OK {
+      todo!("handle error here")
+    }
+
+    let html = response.text().await?;
 
     Ok(())
 }
