@@ -11,7 +11,6 @@ use url::Url;
 pub struct FetchedPage {
     pub url: Url,
     pub final_url: Url,
-    #[serde(skip)]
     pub status_code: u16,
     pub content_type: Option<String>,
     pub html_content: String,
