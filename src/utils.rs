@@ -1,5 +1,8 @@
+#[cfg(test)]
 use std::process::{Child, Command};
+#[cfg(test)]
 use std::thread;
+#[cfg(test)]
 use std::time::Duration;
 
 #[cfg(test)]

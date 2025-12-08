@@ -19,6 +19,8 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
               .timeout(Duration::from_secs(timeout as u64))
               .build()?;
 
+            // note:
+            // per domain rate limit
             let page = FetchedPage::fetch(&client, &url).await?;
         }
     }
