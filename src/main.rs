@@ -1,7 +1,15 @@
+use clap::Parser;
+
+use crate::{cli::execute_commands, commands::Cli};
+
+mod cli;
+mod commands;
+mod fetch;
+mod utils;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("Hello, world!");
+    let cli = Cli::parse();
 
-    Ok(())
+    execute_commands(cli.command).await
 }
