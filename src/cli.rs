@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use reqwest::ClientBuilder;
-use tracing::info;
 
 use crate::{commands::Commands, extract_links::ExtractLinks, fetch::FetchedPage};
 
