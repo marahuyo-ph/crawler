@@ -5,17 +5,17 @@ use url::Url;
 #[derive(Debug, Clone)]
 pub struct ExtractLinks {
     /// Same domain as source URL
-    internal: Vec<Url>,
+    pub internal: Vec<Url>,
     /// Different domain
-    external: Vec<Url>,
+    pub external: Vec<Url>,
     /// Email links
-    mailto: Vec<Url>,
+    pub mailto: Vec<Url>,
     /// Phone Number Links
-    phone: Vec<Url>,
+    pub phone: Vec<Url>,
     /// Fragment links (#section)
-    anchor: Vec<Url>,
+    pub anchor: Vec<Url>,
     /// javascript: protocol
-    javascript: Vec<Url>,
+    pub javascript: Vec<Url>,
 }
 
 impl ExtractLinks {

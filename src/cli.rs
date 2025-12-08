@@ -1,8 +1,9 @@
 use std::time::Duration;
 
 use reqwest::ClientBuilder;
+use tracing::info;
 
-use crate::{commands::Commands, fetch::FetchedPage};
+use crate::{commands::Commands, extract_links::ExtractLinks, fetch::FetchedPage};
 
 pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
     match command {
@@ -49,6 +50,154 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                     println!("├─ Timestamp:            {}", page.timestamp.to_rfc3339());
                     println!("╰─────────────────────────────────────────────────────────────");
                 }
+            }
+        }
+        Commands::ExtractLinks {
+            url,
+            user_agent,
+            timeout,
+            rate_limit: _,
+            internal_only,
+            external_only,
+            output_format,
+        } => {
+            let client = ClientBuilder::new()
+                .user_agent(user_agent)
+                .timeout(Duration::from_secs(timeout as u64))
+                .danger_accept_invalid_certs(false)
+                .build()?;
+
+            let page = FetchedPage::fetch(&client, &url).await?;
+
+            if let Some(document) = page.parsed_html {
+                let links = ExtractLinks::extract(&page.final_url, &document)?;
+
+                match output_format {
+                    crate::commands::OutputFormat::Json => {
+                        let json_output = if internal_only {
+                            serde_json::json!({
+                                "url": page.final_url.to_string(),
+                                "type": "internal_links",
+                                "count": links.internal.len(),
+                                "links": links.internal.iter().map(|u| u.to_string()).collect::<Vec<_>>()
+                            })
+                        } else if external_only {
+                            serde_json::json!({
+                                "url": page.final_url.to_string(),
+                                "type": "external_links",
+                                "count": links.external.len(),
+                                "links": links.external.iter().map(|u| u.to_string()).collect::<Vec<_>>()
+                            })
+                        } else {
+                            serde_json::json!({
+                                "url": page.final_url.to_string(),
+                                "internal": {
+                                    "count": links.internal.len(),
+                                    "links": links.internal.iter().map(|u| u.to_string()).collect::<Vec<_>>()
+                                },
+                                "external": {
+                                    "count": links.external.len(),
+                                    "links": links.external.iter().map(|u| u.to_string()).collect::<Vec<_>>()
+                                },
+                                "mailto": {
+                                    "count": links.mailto.len(),
+                                    "links": links.mailto.iter().map(|u| u.to_string()).collect::<Vec<_>>()
+                                },
+                                "phone": {
+                                    "count": links.phone.len(),
+                                    "links": links.phone.iter().map(|u| u.to_string()).collect::<Vec<_>>()
+                                },
+                                "anchor": {
+                                    "count": links.anchor.len(),
+                                    "links": links.anchor.iter().map(|u| u.to_string()).collect::<Vec<_>>()
+                                },
+                                "javascript": {
+                                    "count": links.javascript.len(),
+                                    "links": links.javascript.iter().map(|u| u.to_string()).collect::<Vec<_>>()
+                                }
+                            })
+                        };
+                        println!("{}", serde_json::to_string_pretty(&json_output)?);
+                    }
+                    crate::commands::OutputFormat::Text => {
+                        if internal_only {
+                            println!("╭─ Internal Links ───────────────────────────────────────────");
+                            println!("├─ URL:    {}", page.final_url);
+                            println!("├─ Count:  {}", links.internal.len());
+                            println!("├─ Links:");
+                            for link in &links.internal {
+                                println!("│  • {}", link);
+                            }
+                            println!("╰─────────────────────────────────────────────────────────────");
+                        } else if external_only {
+                            println!("╭─ External Links ───────────────────────────────────────────");
+                            println!("├─ URL:    {}", page.final_url);
+                            println!("├─ Count:  {}", links.external.len());
+                            println!("├─ Links:");
+                            for link in &links.external {
+                                println!("│  • {}", link);
+                            }
+                            println!("╰─────────────────────────────────────────────────────────────");
+                        } else {
+                            println!("╭─ All Links ────────────────────────────────────────────────");
+                            println!("├─ URL:    {}", page.final_url);
+                            println!("│");
+                            
+                            if !links.internal.is_empty() {
+                                println!("├─ Internal Links ({}):", links.internal.len());
+                                for link in &links.internal {
+                                    println!("│  • {}", link);
+                                }
+                                println!("│");
+                            }
+
+                            if !links.external.is_empty() {
+                                println!("├─ External Links ({}):", links.external.len());
+                                for link in &links.external {
+                                    println!("│  • {}", link);
+                                }
+                                println!("│");
+                            }
+
+                            if !links.mailto.is_empty() {
+                                println!("├─ Email Links ({}):", links.mailto.len());
+                                for link in &links.mailto {
+                                    println!("│  • {}", link);
+                                }
+                                println!("│");
+                            }
+
+                            if !links.phone.is_empty() {
+                                println!("├─ Phone Links ({}):", links.phone.len());
+                                for link in &links.phone {
+                                    println!("│  • {}", link);
+                                }
+                                println!("│");
+                            }
+
+                            if !links.anchor.is_empty() {
+                                println!("├─ Anchor Links ({}):", links.anchor.len());
+                                for link in &links.anchor {
+                                    println!("│  • {}", link);
+                                }
+                                println!("│");
+                            }
+
+                            if !links.javascript.is_empty() {
+                                println!("├─ JavaScript Links ({}):", links.javascript.len());
+                                for link in &links.javascript {
+                                    println!("│  • {}", link);
+                                }
+                            }
+                            println!("╰─────────────────────────────────────────────────────────────");
+                        }
+                    }
+                }
+            } else {
+                return Err(anyhow::anyhow!(
+                    "HTML parsing failed: unable to parse content from {}",
+                    page.final_url
+                ));
             }
         }
     }
