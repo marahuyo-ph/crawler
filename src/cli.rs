@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use reqwest::ClientBuilder;
-use serde_json::json;
 
 use crate::{commands::Commands, fetch::FetchedPage};
 
@@ -18,10 +17,9 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
             let client = ClientBuilder::new()
               .user_agent(user_agent)
               .timeout(Duration::from_secs(timeout as u64))
+              .danger_accept_invalid_certs(false)
               .build()?;
 
-            // note:
-            // per domain rate limit
             let page = FetchedPage::fetch(&client, &url).await?;
 
             match output_format {
