@@ -1,10 +1,14 @@
 use std::time::Duration;
 
 use reqwest::ClientBuilder;
+use tracing::{debug, warn, error};
 
 use crate::{
-    commands::Commands, extract_links::ExtractLinks, extract_metadata::PageMetadata,
-    fetch::{FetchedPage, fetch_page},
+    check_robots::Robot,
+    commands::Commands,
+    extract_links::ExtractLinks,
+    extract_metadata::PageMetadata,
+    fetch::fetch_page,
 };
 
 pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
@@ -22,7 +26,7 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                 .danger_accept_invalid_certs(false)
                 .build()?;
 
-            let page = fetch_page(&client, &url,5,3,Duration::from_secs(1)).await?;
+            let page = fetch_page(&client, &url, 5, 3, Duration::from_secs(1)).await?;
 
             match output_format {
                 crate::commands::OutputFormat::Json => {
@@ -69,7 +73,7 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                 .danger_accept_invalid_certs(false)
                 .build()?;
 
-            let page = fetch_page(&client, &url,5,3,Duration::from_secs(1)).await?;
+            let page = fetch_page(&client, &url, 5, 3, Duration::from_secs(1)).await?;
 
             if let Some(document) = page.parsed_html {
                 let links = ExtractLinks::extract(&page.final_url, &document)?;
@@ -270,7 +274,7 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                 .danger_accept_invalid_certs(false)
                 .build()?;
 
-            let page = fetch_page(&client, &url,5,3,Duration::from_secs(1)).await?;
+            let page = fetch_page(&client, &url, 5, 3, Duration::from_secs(1)).await?;
 
             if let Some(document) = page.parsed_html {
                 let metadata = PageMetadata::extract(&document)?;
@@ -525,6 +529,167 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                     "HTML parsing failed: unable to parse content from {}",
                     page.final_url
                 ));
+            }
+        },
+        Commands::CheckRobot { url, user_agent, timeout, output_format } => {
+            
+            let client = ClientBuilder::new()
+                .user_agent(&user_agent)
+                .timeout(Duration::from_secs(timeout as u64))
+                .danger_accept_invalid_certs(false)
+                .build()?;
+
+            let robots_url = url.join("robots.txt")?;
+            debug!("Fetching robots.txt from: {}", robots_url);
+            
+            let response = match client.get(robots_url.clone()).send().await {
+                Ok(resp) => resp,
+                Err(e) => {
+                    error!("Failed to fetch robots.txt: {}", e);
+                    return Err(anyhow::anyhow!("Failed to fetch robots.txt: {}", e));
+                }
+            };
+
+            let status = response.status();
+            debug!("robots.txt response status: {}", status);
+
+            // Handle different HTTP status codes per RFC 9309
+            let robot = match status.as_u16() {
+                404 => {
+                    warn!("robots.txt not found (404) - treating as all paths allowed");
+                    None
+                }
+                403 => {
+                    warn!("robots.txt forbidden (403) - treating as all paths disallowed (conservative)");
+                    // Return a special marker - we'll handle this in output
+                    Some("FORBIDDEN".to_string())
+                }
+                200 => {
+                    match response.text().await {
+                        Ok(text) => {
+                            debug!("Successfully fetched robots.txt (size: {} bytes)", text.len());
+                            Some(text)
+                        }
+                        Err(e) => {
+                            error!("Failed to read robots.txt response body: {}", e);
+                            return Err(anyhow::anyhow!("Failed to read robots.txt: {}", e));
+                        }
+                    }
+                }
+                code => {
+                    warn!("Unexpected robots.txt status code: {} - treating as all paths allowed", code);
+                    None
+                }
+            };
+
+            match output_format {
+                crate::commands::OutputFormat::Json => {
+                    match robot {
+                        Some(robot_text) if robot_text == "FORBIDDEN" => {
+                            let json_output = serde_json::json!({
+                                "url": url.to_string(),
+                                "user_agent": user_agent,
+                                "status": "forbidden",
+                                "message": "robots.txt returned 403 Forbidden - treating all paths as disallowed",
+                                "crawl_delay": serde_json::Value::Null,
+                                "request_rate": serde_json::Value::Null,
+                                "sitemaps": Vec::<String>::new(),
+                                "groups": Vec::<serde_json::Value>::new(),
+                            });
+                            println!("{}", serde_json::to_string_pretty(&json_output)?);
+                        }
+                        Some(robot_text) => {
+                            let robot = Robot::new(robot_text);
+                            let group_info = robot.get_group_info(&user_agent);
+                            
+                            let json_output = serde_json::json!({
+                                "url": url.to_string(),
+                                "user_agent": user_agent,
+                                "status": "ok",
+                                "matched_group": group_info.as_ref().map(|g| &g.user_agents),
+                                "rule_count": group_info.as_ref().map(|g| g.rule_count).unwrap_or(0),
+                                "allow_rules": group_info.as_ref().map(|g| g.allow_count).unwrap_or(0),
+                                "disallow_rules": group_info.as_ref().map(|g| g.disallow_count).unwrap_or(0),
+                                "crawl_delay": robot.crawl_delay(&user_agent),
+                                "request_rate": robot.request_rate(&user_agent),
+                                "sitemaps": robot.sitemaps(),
+                            });
+                            println!("{}", serde_json::to_string_pretty(&json_output)?);
+                        }
+                        None => {
+                            let json_output = serde_json::json!({
+                                "url": url.to_string(),
+                                "user_agent": user_agent,
+                                "status": "not_found",
+                                "message": "robots.txt not found (404) - treating as all paths allowed",
+                                "crawl_delay": serde_json::Value::Null,
+                                "request_rate": serde_json::Value::Null,
+                                "sitemaps": Vec::<String>::new(),
+                                "groups": Vec::<serde_json::Value>::new(),
+                            });
+                            println!("{}", serde_json::to_string_pretty(&json_output)?);
+                        }
+                    }
+                }
+                crate::commands::OutputFormat::Text => {
+                    match robot {
+                        Some(robot_text) if robot_text == "FORBIDDEN" => {
+                            println!("╭─ Robots.txt Check ────────────────────────────────────────");
+                            println!("├─ URL:            {}", url);
+                            println!("├─ User-Agent:     {}", user_agent);
+                            println!("├─ Status:         ⚠️  FORBIDDEN (403)");
+                            println!("├─ Behavior:       All paths are DISALLOWED (conservative)");
+                            println!("├─ Reason:         robots.txt returned 403 Forbidden");
+                            println!("╰─────────────────────────────────────────────────────────────");
+                        }
+                        Some(robot_text) => {
+                            let robot = Robot::new(robot_text);
+                            let group_info = robot.get_group_info(&user_agent);
+                            
+                            println!("╭─ Robots.txt Check ────────────────────────────────────────");
+                            println!("├─ URL:            {}", url);
+                            println!("├─ User-Agent:     {}", user_agent);
+                            println!("├─ Status:         ✓ OK");
+                            
+                            if let Some(info) = group_info {
+                                println!("├─ Matched Group:  {:?}", info.user_agents);
+                                println!("├─ Rules Found:    {} total ({} allow, {} disallow)", 
+                                    info.rule_count, info.allow_count, info.disallow_count);
+                                
+                                if let Some(delay) = info.crawl_delay {
+                                    println!("├─ Crawl-Delay:    {} seconds", delay);
+                                }
+                                if let Some(rate) = info.request_rate {
+                                    println!("├─ Request-Rate:   {} requests/second", rate);
+                                }
+                            } else {
+                                println!("├─ Matched Group:  * (wildcard)");
+                                println!("├─ Rules Found:    No specific rules for this user-agent");
+                            }
+                            
+                            let sitemaps = robot.sitemaps();
+                            if !sitemaps.is_empty() {
+                                println!("├─ Sitemaps:       {} found", sitemaps.len());
+                                for sitemap in sitemaps {
+                                    println!("│  ├─ {}", sitemap);
+                                }
+                            }
+                            println!("╰─────────────────────────────────────────────────────────────");
+                        }
+                        None => {
+                            println!("╭─ Robots.txt Check ────────────────────────────────────────");
+                            println!("├─ URL:            {}", url);
+                            println!("├─ User-Agent:     {}", user_agent);
+                            println!("├─ Status:         ℹ️  NOT FOUND (404)");
+                            println!("├─ Behavior:       All paths are ALLOWED");
+                            println!("├─ Reason:         robots.txt not found, default is permissive");
+                            println!("├─ Crawl-Delay:    (not specified)");
+                            println!("├─ Request-Rate:   (not specified)");
+                            println!("├─ Sitemaps:       (none found)");
+                            println!("╰─────────────────────────────────────────────────────────────");
+                        }
+                    }
+                }
             }
         }
     }
