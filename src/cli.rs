@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use reqwest::ClientBuilder;
 
-use crate::{commands::Commands, extract_links::ExtractLinks, extract_metadata::PageMetadata, fetch::FetchedPage};
+use crate::{
+    commands::Commands, extract_links::ExtractLinks, extract_metadata::PageMetadata,
+    fetch::{FetchedPage, fetch_page},
+};
 
 pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
     match command {
@@ -19,7 +22,7 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                 .danger_accept_invalid_certs(false)
                 .build()?;
 
-            let page = FetchedPage::fetch(&client, &url).await?;
+            let page = fetch_page(&client, &url,5,3,Duration::from_secs(1)).await?;
 
             match output_format {
                 crate::commands::OutputFormat::Json => {
@@ -66,7 +69,7 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                 .danger_accept_invalid_certs(false)
                 .build()?;
 
-            let page = FetchedPage::fetch(&client, &url).await?;
+            let page = fetch_page(&client, &url,5,3,Duration::from_secs(1)).await?;
 
             if let Some(document) = page.parsed_html {
                 let links = ExtractLinks::extract(&page.final_url, &document)?;
@@ -252,19 +255,24 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                     page.final_url
                 ));
             }
-        },
-        Commands::ExtractMetadata { url, user_agent, timeout, rate_limit:_, include, output_format } => {
-            
+        }
+        Commands::ExtractMetadata {
+            url,
+            user_agent,
+            timeout,
+            rate_limit: _,
+            include,
+            output_format,
+        } => {
             let client = ClientBuilder::new()
                 .user_agent(user_agent)
                 .timeout(Duration::from_secs(timeout as u64))
                 .danger_accept_invalid_certs(false)
                 .build()?;
 
-            let page = FetchedPage::fetch(&client, &url).await?;
+            let page = fetch_page(&client, &url,5,3,Duration::from_secs(1)).await?;
 
             if let Some(document) = page.parsed_html {
-
                 let metadata = PageMetadata::extract(&document)?;
 
                 match output_format {
@@ -310,28 +318,48 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                         });
 
                         // Add optional fields if requested
-                        if include.iter().any(|i| i.to_lowercase() == "hreflang" || i.to_lowercase() == "links") {
+                        if include
+                            .iter()
+                            .any(|i| i.to_lowercase() == "hreflang" || i.to_lowercase() == "links")
+                        {
                             let hreflang: std::collections::HashMap<String, String> = metadata
                                 .links
                                 .alternate_languages
                                 .iter()
                                 .map(|(k, v)| (k.clone(), v.to_string()))
                                 .collect();
-                            json_output["links"]["alternate_languages"] = serde_json::to_value(hreflang)?;
+                            json_output["links"]["alternate_languages"] =
+                                serde_json::to_value(hreflang)?;
                         }
 
-                        if include.iter().any(|i| i.to_lowercase() == "canonical" || i.to_lowercase() == "links") {
-                            json_output["links"]["canonical"] = serde_json::to_value(metadata.links.canonical.map(|u| u.to_string()))?;
+                        if include
+                            .iter()
+                            .any(|i| i.to_lowercase() == "canonical" || i.to_lowercase() == "links")
+                        {
+                            json_output["links"]["canonical"] = serde_json::to_value(
+                                metadata.links.canonical.map(|u| u.to_string()),
+                            )?;
                         }
 
-                        if include.iter().any(|i| i.to_lowercase() == "author" || i.to_lowercase() == "links") {
-                            json_output["links"]["prev"] = serde_json::to_value(metadata.links.prev.map(|u| u.to_string()))?;
-                            json_output["links"]["next"] = serde_json::to_value(metadata.links.next.map(|u| u.to_string()))?;
+                        if include
+                            .iter()
+                            .any(|i| i.to_lowercase() == "author" || i.to_lowercase() == "links")
+                        {
+                            json_output["links"]["prev"] =
+                                serde_json::to_value(metadata.links.prev.map(|u| u.to_string()))?;
+                            json_output["links"]["next"] =
+                                serde_json::to_value(metadata.links.next.map(|u| u.to_string()))?;
                         }
 
-                        if include.iter().any(|i| i.to_lowercase() == "publisher" || i.to_lowercase() == "links") {
-                            json_output["links"]["icon"] = serde_json::to_value(metadata.links.icon.map(|u| u.to_string()))?;
-                            json_output["links"]["apple_touch_icon"] = serde_json::to_value(metadata.links.apple_touch_icon.map(|u| u.to_string()))?;
+                        if include
+                            .iter()
+                            .any(|i| i.to_lowercase() == "publisher" || i.to_lowercase() == "links")
+                        {
+                            json_output["links"]["icon"] =
+                                serde_json::to_value(metadata.links.icon.map(|u| u.to_string()))?;
+                            json_output["links"]["apple_touch_icon"] = serde_json::to_value(
+                                metadata.links.apple_touch_icon.map(|u| u.to_string()),
+                            )?;
                         }
 
                         println!("{}", serde_json::to_string_pretty(&json_output)?);
@@ -448,7 +476,9 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                             if let Some(capable) = metadata.viewport.apple_mobile_web_app_capable {
                                 println!("│  ├─ Mobile Web App Capable:  {}", capable);
                             }
-                            if let Some(status) = &metadata.viewport.apple_mobile_web_app_status_bar_style {
+                            if let Some(status) =
+                                &metadata.viewport.apple_mobile_web_app_status_bar_style
+                            {
                                 println!("│  └─ Status Bar Style:        {}", status);
                             }
                             println!("│");

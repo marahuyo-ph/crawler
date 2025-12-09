@@ -65,7 +65,7 @@ pub enum Commands {
         /// Output format: json or default text (default: text)
         #[arg(long, value_parser, default_value = "text")]
         output_format: OutputFormat,
-    }
+    },
 }
 
 #[derive(Parser, Debug)]
