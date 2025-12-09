@@ -220,6 +220,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "urlpattern",
 ]
 
 [[package]]
@@ -1888,6 +1889,18 @@ dependencies = [
  "idna",
  "percent-encoding",
  "serde",
+]
+
+[[package]]
+name = "urlpattern"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "957a88ad1abd5d13336275adb17d4f9b6a2404f3baed2e075e0b026dc0b2b58d"
+dependencies = [
+ "icu_properties",
+ "regex",
+ "serde",
+ "url",
 ]
 
 [[package]]

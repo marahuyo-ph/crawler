@@ -198,4 +198,3 @@ pub async fn fetch_page(
         }
     }
 }
-

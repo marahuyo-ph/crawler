@@ -66,6 +66,19 @@ pub enum Commands {
         #[arg(long, value_parser, default_value = "text")]
         output_format: OutputFormat,
     },
+    CheckRobot {
+        /// Target URL to fetch (required)
+        url: Url,
+        /// Custom User-Agent string (default: "Marahuyo-Crawler/0.1.0")
+        #[arg(long, default_value = "Marahuyo-Crawler/0.1.0")]
+        user_agent: String,
+        /// HTTP request timeout in seconds (default: 30)
+        #[arg(long, default_value_t = 30)]
+        timeout: i64,
+        /// Output format: json or default text (default: text)
+        #[arg(long, value_parser, default_value = "text")]
+        output_format: OutputFormat,
+    }
 }
 
 #[derive(Parser, Debug)]

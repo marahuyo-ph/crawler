@@ -2,6 +2,7 @@ use clap::Parser;
 
 use crate::{cli::execute_commands, commands::Cli};
 
+mod check_robots;
 mod cli;
 mod commands;
 mod extract_links;
