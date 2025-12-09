@@ -9,6 +9,7 @@ mod extract_links;
 mod extract_metadata;
 mod fetch;
 mod utils;
+mod printer;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
