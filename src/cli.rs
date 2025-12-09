@@ -9,6 +9,7 @@ use crate::{
     extract_links::ExtractLinks,
     extract_metadata::PageMetadata,
     fetch::fetch_page,
+    printer::pretty_printer,
 };
 
 pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
@@ -43,18 +44,18 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                     println!("{}", serde_json::to_string_pretty(&json_output)?);
                 }
                 crate::commands::OutputFormat::Text => {
-                    println!("╭─ Fetch Results ────────────────────────────────────────────");
-                    println!("├─ URL:                  {}", page.url);
-                    println!("├─ Final URL:            {}", page.final_url);
-                    println!("├─ Status Code:          {}", page.status_code);
-                    println!(
-                        "├─ Content-Type:         {}",
-                        page.content_type.as_deref().unwrap_or("unknown")
-                    );
-                    println!("├─ Content Size:         {} bytes", page.html_content.len());
-                    println!("├─ Fetch Duration:       {} ms", page.fetched_duration_ms);
-                    println!("├─ Timestamp:            {}", page.timestamp.to_rfc3339());
-                    println!("╰─────────────────────────────────────────────────────────────");
+                    let json_output = serde_json::json!({
+                        "Fetch Results": {
+                            "URL": page.url.to_string(),
+                            "Final URL": page.final_url.to_string(),
+                            "Status Code": page.status_code,
+                            "Content-Type": page.content_type.as_deref().unwrap_or("unknown"),
+                            "Content Size": format!("{} bytes", page.html_content.len()),
+                            "Fetch Duration": format!("{} ms", page.fetched_duration_ms),
+                            "Timestamp": page.timestamp.to_rfc3339(),
+                        }
+                    });
+                    println!("{}", pretty_printer(json_output)?);
                 }
             }
         }
@@ -127,129 +128,154 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                     }
                     crate::commands::OutputFormat::Text => {
                         if internal_only {
-                            println!(
-                                "╭─ Internal Links ───────────────────────────────────────────"
-                            );
-                            println!("├─ URL:    {}", page.final_url);
-                            println!("├─ Count:  {}", links.internal.len());
-                            println!("├─ Links:");
+                            let mut links_array = Vec::new();
                             for link in &links.internal {
-                                println!("│  ├─ URL:  {}", link.url);
+                                let mut link_obj = serde_json::json!({
+                                    "URL": link.url.to_string(),
+                                });
                                 if !link.text.is_empty() {
-                                    println!("│  ├─ Text: {}", link.text);
+                                    link_obj["Text"] = serde_json::json!(link.text);
                                 }
                                 if let Some(title) = &link.title {
-                                    println!("│  ├─ Title: {}", title);
+                                    link_obj["Title"] = serde_json::json!(title);
                                 }
                                 if let Some(rel) = &link.rel {
-                                    println!("│  ├─ Rel:  {}", rel);
+                                    link_obj["Rel"] = serde_json::json!(rel);
                                 }
                                 if let Some(target) = &link.target {
-                                    println!("│  └─ Target: {}", target);
+                                    link_obj["Target"] = serde_json::json!(target);
                                 }
+                                links_array.push(link_obj);
                             }
-                            println!(
-                                "╰─────────────────────────────────────────────────────────────"
-                            );
+                            let json_output = serde_json::json!({
+                                "Internal Links": {
+                                    "URL": page.final_url.to_string(),
+                                    "Count": links.internal.len(),
+                                    "Links": links_array
+                                }
+                            });
+                            println!("{}", pretty_printer(json_output)?);
                         } else if external_only {
-                            println!(
-                                "╭─ External Links ───────────────────────────────────────────"
-                            );
-                            println!("├─ URL:    {}", page.final_url);
-                            println!("├─ Count:  {}", links.external.len());
-                            println!("├─ Links:");
+                            let mut links_array = Vec::new();
                             for link in &links.external {
-                                println!("│  ├─ URL:  {}", link.url);
+                                let mut link_obj = serde_json::json!({
+                                    "URL": link.url.to_string(),
+                                });
                                 if !link.text.is_empty() {
-                                    println!("│  ├─ Text: {}", link.text);
+                                    link_obj["Text"] = serde_json::json!(link.text);
                                 }
                                 if let Some(title) = &link.title {
-                                    println!("│  ├─ Title: {}", title);
+                                    link_obj["Title"] = serde_json::json!(title);
                                 }
                                 if let Some(rel) = &link.rel {
-                                    println!("│  ├─ Rel:  {}", rel);
+                                    link_obj["Rel"] = serde_json::json!(rel);
                                 }
                                 if let Some(target) = &link.target {
-                                    println!("│  └─ Target: {}", target);
+                                    link_obj["Target"] = serde_json::json!(target);
                                 }
+                                links_array.push(link_obj);
                             }
-                            println!(
-                                "╰─────────────────────────────────────────────────────────────"
-                            );
+                            let json_output = serde_json::json!({
+                                "External Links": {
+                                    "URL": page.final_url.to_string(),
+                                    "Count": links.external.len(),
+                                    "Links": links_array
+                                }
+                            });
+                            println!("{}", pretty_printer(json_output)?);
                         } else {
-                            println!(
-                                "╭─ All Links ────────────────────────────────────────────────"
-                            );
-                            println!("├─ URL:    {}", page.final_url);
-                            println!("│");
+                            let mut all_links = serde_json::json!({
+                                "URL": page.final_url.to_string(),
+                            });
 
                             if !links.internal.is_empty() {
-                                println!("├─ Internal Links ({}):", links.internal.len());
+                                let mut internal_array = Vec::new();
                                 for link in &links.internal {
-                                    println!("│  ├─ URL:  {}", link.url);
-                                    if !link.text.is_empty() {
-                                        println!("│  │  └─ Text: {}", link.text);
-                                    }
+                                    internal_array.push(serde_json::json!({
+                                        "URL": link.url.to_string(),
+                                        "Text": link.text,
+                                    }));
                                 }
-                                println!("│");
+                                all_links["Internal Links"] = serde_json::json!({
+                                    "Count": links.internal.len(),
+                                    "Links": internal_array
+                                });
                             }
 
                             if !links.external.is_empty() {
-                                println!("├─ External Links ({}):", links.external.len());
+                                let mut external_array = Vec::new();
                                 for link in &links.external {
-                                    println!("│  ├─ URL:  {}", link.url);
-                                    if !link.text.is_empty() {
-                                        println!("│  │  └─ Text: {}", link.text);
-                                    }
+                                    external_array.push(serde_json::json!({
+                                        "URL": link.url.to_string(),
+                                        "Text": link.text,
+                                    }));
                                 }
-                                println!("│");
+                                all_links["External Links"] = serde_json::json!({
+                                    "Count": links.external.len(),
+                                    "Links": external_array
+                                });
                             }
 
                             if !links.mailto.is_empty() {
-                                println!("├─ Email Links ({}):", links.mailto.len());
+                                let mut mailto_array = Vec::new();
                                 for link in &links.mailto {
-                                    println!("│  ├─ URL:  {}", link.url);
-                                    if !link.text.is_empty() {
-                                        println!("│  │  └─ Text: {}", link.text);
-                                    }
+                                    mailto_array.push(serde_json::json!({
+                                        "URL": link.url.to_string(),
+                                        "Text": link.text,
+                                    }));
                                 }
-                                println!("│");
+                                all_links["Email Links"] = serde_json::json!({
+                                    "Count": links.mailto.len(),
+                                    "Links": mailto_array
+                                });
                             }
 
                             if !links.phone.is_empty() {
-                                println!("├─ Phone Links ({}):", links.phone.len());
+                                let mut phone_array = Vec::new();
                                 for link in &links.phone {
-                                    println!("│  ├─ URL:  {}", link.url);
-                                    if !link.text.is_empty() {
-                                        println!("│  │  └─ Text: {}", link.text);
-                                    }
+                                    phone_array.push(serde_json::json!({
+                                        "URL": link.url.to_string(),
+                                        "Text": link.text,
+                                    }));
                                 }
-                                println!("│");
+                                all_links["Phone Links"] = serde_json::json!({
+                                    "Count": links.phone.len(),
+                                    "Links": phone_array
+                                });
                             }
 
                             if !links.anchor.is_empty() {
-                                println!("├─ Anchor Links ({}):", links.anchor.len());
+                                let mut anchor_array = Vec::new();
                                 for link in &links.anchor {
-                                    println!("│  ├─ URL:  {}", link.url);
-                                    if !link.text.is_empty() {
-                                        println!("│  │  └─ Text: {}", link.text);
-                                    }
+                                    anchor_array.push(serde_json::json!({
+                                        "URL": link.url.to_string(),
+                                        "Text": link.text,
+                                    }));
                                 }
-                                println!("│");
+                                all_links["Anchor Links"] = serde_json::json!({
+                                    "Count": links.anchor.len(),
+                                    "Links": anchor_array
+                                });
                             }
 
                             if !links.javascript.is_empty() {
-                                println!("├─ JavaScript Links ({}):", links.javascript.len());
+                                let mut js_array = Vec::new();
                                 for link in &links.javascript {
-                                    println!("│  ├─ URL:  {}", link.url);
-                                    if !link.text.is_empty() {
-                                        println!("│  │  └─ Text: {}", link.text);
-                                    }
+                                    js_array.push(serde_json::json!({
+                                        "URL": link.url.to_string(),
+                                        "Text": link.text,
+                                    }));
                                 }
+                                all_links["JavaScript Links"] = serde_json::json!({
+                                    "Count": links.javascript.len(),
+                                    "Links": js_array
+                                });
                             }
-                            println!(
-                                "╰─────────────────────────────────────────────────────────────"
-                            );
+
+                            let json_output = serde_json::json!({
+                                "All Links": all_links
+                            });
+                            println!("{}", pretty_printer(json_output)?);
                         }
                     }
                 }
@@ -369,126 +395,64 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                         println!("{}", serde_json::to_string_pretty(&json_output)?);
                     }
                     crate::commands::OutputFormat::Text => {
-                        println!("╭─ Metadata ─────────────────────────────────────────────────");
-                        println!("├─ URL: {}", page.final_url);
-                        println!("│");
+                        let mut metadata_obj = serde_json::json!({
+                            "URL": page.final_url.to_string(),
+                            "Basic Metadata": {
+                                "Title": metadata.basic.title,
+                                "Description": metadata.basic.description,
+                                "Keywords": metadata.basic.keywords.as_ref().map(|k| k.join(", ")),
+                                "Charset": metadata.basic.charset,
+                                "Language": metadata.basic.language,
+                            },
+                            "SEO Metadata": {
+                                "Robots": metadata.seo.robots,
+                                "Canonical": metadata.seo.canonical.map(|u| u.to_string()),
+                                "Author": metadata.seo.author,
+                                "Publisher": metadata.seo.publisher,
+                                "Creator": metadata.seo.creator,
+                            },
+                        });
 
-                        // Basic Metadata
-                        println!("├─ Basic Metadata:");
-                        if let Some(title) = &metadata.basic.title {
-                            println!("│  ├─ Title:       {}", title);
-                        }
-                        if let Some(desc) = &metadata.basic.description {
-                            println!("│  ├─ Description: {}", desc);
-                        }
-                        if let Some(keywords) = &metadata.basic.keywords {
-                            println!("│  ├─ Keywords:    {}", keywords.join(", "));
-                        }
-                        if let Some(charset) = &metadata.basic.charset {
-                            println!("│  ├─ Charset:     {}", charset);
-                        }
-                        if let Some(lang) = &metadata.basic.language {
-                            println!("│  └─ Language:    {}", lang);
-                        }
-                        println!("│");
-
-                        // SEO Metadata
-                        println!("├─ SEO Metadata:");
-                        if let Some(robots) = &metadata.seo.robots {
-                            println!("│  ├─ Robots:      {}", robots);
-                        }
-                        if let Some(canonical) = &metadata.seo.canonical {
-                            println!("│  ├─ Canonical:   {}", canonical);
-                        }
-                        if let Some(author) = &metadata.seo.author {
-                            println!("│  ├─ Author:      {}", author);
-                        }
-                        if let Some(publisher) = &metadata.seo.publisher {
-                            println!("│  ├─ Publisher:   {}", publisher);
-                        }
-                        if let Some(creator) = &metadata.seo.creator {
-                            println!("│  └─ Creator:     {}", creator);
-                        }
-                        println!("│");
-
-                        // Open Graph
                         if metadata.open_graph.og_type.is_some()
                             || metadata.open_graph.og_title.is_some()
                             || metadata.open_graph.og_description.is_some()
                         {
-                            println!("├─ Open Graph:");
-                            if let Some(og_type) = &metadata.open_graph.og_type {
-                                println!("│  ├─ Type:        {}", og_type);
-                            }
-                            if let Some(og_title) = &metadata.open_graph.og_title {
-                                println!("│  ├─ Title:       {}", og_title);
-                            }
-                            if let Some(og_desc) = &metadata.open_graph.og_description {
-                                println!("│  ├─ Description: {}", og_desc);
-                            }
-                            if let Some(og_url) = &metadata.open_graph.og_url {
-                                println!("│  ├─ URL:         {}", og_url);
-                            }
-                            if let Some(og_image) = &metadata.open_graph.og_image {
-                                println!("│  ├─ Image:       {}", og_image);
-                            }
-                            if let Some(og_site) = &metadata.open_graph.og_site_name {
-                                println!("│  ├─ Site Name:   {}", og_site);
-                            }
-                            if let Some(og_locale) = &metadata.open_graph.og_locale {
-                                println!("│  └─ Locale:      {}", og_locale);
-                            }
-                            println!("│");
+                            metadata_obj["Open Graph"] = serde_json::json!({
+                                "Type": metadata.open_graph.og_type,
+                                "Title": metadata.open_graph.og_title,
+                                "Description": metadata.open_graph.og_description,
+                                "URL": metadata.open_graph.og_url.map(|u| u.to_string()),
+                                "Image": metadata.open_graph.og_image.map(|u| u.to_string()),
+                                "Site Name": metadata.open_graph.og_site_name,
+                                "Locale": metadata.open_graph.og_locale,
+                            });
                         }
 
-                        // Twitter Card
                         if metadata.twitter_card.twitter_card.is_some()
                             || metadata.twitter_card.twitter_title.is_some()
                             || metadata.twitter_card.twitter_description.is_some()
                         {
-                            println!("├─ Twitter Card:");
-                            if let Some(card) = &metadata.twitter_card.twitter_card {
-                                println!("│  ├─ Card Type:   {}", card);
-                            }
-                            if let Some(tw_title) = &metadata.twitter_card.twitter_title {
-                                println!("│  ├─ Title:       {}", tw_title);
-                            }
-                            if let Some(tw_desc) = &metadata.twitter_card.twitter_description {
-                                println!("│  ├─ Description: {}", tw_desc);
-                            }
-                            if let Some(tw_url) = &metadata.twitter_card.twitter_url {
-                                println!("│  ├─ URL:         {}", tw_url);
-                            }
-                            if let Some(tw_image) = &metadata.twitter_card.twitter_image {
-                                println!("│  └─ Image:       {}", tw_image);
-                            }
-                            println!("│");
+                            metadata_obj["Twitter Card"] = serde_json::json!({
+                                "Card Type": metadata.twitter_card.twitter_card,
+                                "Title": metadata.twitter_card.twitter_title,
+                                "Description": metadata.twitter_card.twitter_description,
+                                "URL": metadata.twitter_card.twitter_url.map(|u| u.to_string()),
+                                "Image": metadata.twitter_card.twitter_image.map(|u| u.to_string()),
+                            });
                         }
 
-                        // Viewport
                         if metadata.viewport.viewport.is_some()
                             || metadata.viewport.theme_color.is_some()
                             || metadata.viewport.apple_mobile_web_app_capable.is_some()
                         {
-                            println!("├─ Viewport & Mobile:");
-                            if let Some(vp) = &metadata.viewport.viewport {
-                                println!("│  ├─ Viewport:                {}", vp);
-                            }
-                            if let Some(theme) = &metadata.viewport.theme_color {
-                                println!("│  ├─ Theme Color:             {}", theme);
-                            }
-                            if let Some(capable) = metadata.viewport.apple_mobile_web_app_capable {
-                                println!("│  ├─ Mobile Web App Capable:  {}", capable);
-                            }
-                            if let Some(status) =
-                                &metadata.viewport.apple_mobile_web_app_status_bar_style
-                            {
-                                println!("│  └─ Status Bar Style:        {}", status);
-                            }
-                            println!("│");
+                            metadata_obj["Viewport & Mobile"] = serde_json::json!({
+                                "Viewport": metadata.viewport.viewport,
+                                "Theme Color": metadata.viewport.theme_color,
+                                "Mobile Web App Capable": metadata.viewport.apple_mobile_web_app_capable,
+                                "Status Bar Style": metadata.viewport.apple_mobile_web_app_status_bar_style,
+                            });
                         }
 
-                        // Link Metadata (if requested)
                         if include.contains(&"links".to_string())
                             || include.iter().any(|i| {
                                 i.to_lowercase() == "hreflang"
@@ -497,31 +461,36 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                                     || i.to_lowercase() == "publisher"
                             })
                         {
-                            println!("├─ Links:");
+                            let mut links_obj = serde_json::json!({});
                             if let Some(canonical) = &metadata.links.canonical {
-                                println!("│  ├─ Canonical:        {}", canonical);
+                                links_obj["Canonical"] = serde_json::json!(canonical.to_string());
                             }
                             if !metadata.links.alternate_languages.is_empty() {
-                                println!("│  ├─ Alternate Languages:");
+                                let mut alt_langs = serde_json::Map::new();
                                 for (lang, url) in &metadata.links.alternate_languages {
-                                    println!("│  │  ├─ {}: {}", lang, url);
+                                    alt_langs.insert(lang.clone(), serde_json::json!(url.to_string()));
                                 }
+                                links_obj["Alternate Languages"] = serde_json::Value::Object(alt_langs);
                             }
                             if let Some(prev) = &metadata.links.prev {
-                                println!("│  ├─ Previous:         {}", prev);
+                                links_obj["Previous"] = serde_json::json!(prev.to_string());
                             }
                             if let Some(next) = &metadata.links.next {
-                                println!("│  ├─ Next:             {}", next);
+                                links_obj["Next"] = serde_json::json!(next.to_string());
                             }
                             if let Some(icon) = &metadata.links.icon {
-                                println!("│  ├─ Icon:             {}", icon);
+                                links_obj["Icon"] = serde_json::json!(icon.to_string());
                             }
                             if let Some(apple_icon) = &metadata.links.apple_touch_icon {
-                                println!("│  └─ Apple Touch Icon: {}", apple_icon);
+                                links_obj["Apple Touch Icon"] = serde_json::json!(apple_icon.to_string());
                             }
+                            metadata_obj["Links"] = links_obj;
                         }
 
-                        println!("╰─────────────────────────────────────────────────────────────");
+                        let json_output = serde_json::json!({
+                            "Metadata": metadata_obj
+                        });
+                        println!("{}", pretty_printer(json_output)?);
                     }
                 }
             } else {
@@ -634,59 +603,69 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                 crate::commands::OutputFormat::Text => {
                     match robot {
                         Some(robot_text) if robot_text == "FORBIDDEN" => {
-                            println!("╭─ Robots.txt Check ────────────────────────────────────────");
-                            println!("├─ URL:            {}", url);
-                            println!("├─ User-Agent:     {}", user_agent);
-                            println!("├─ Status:         ⚠️  FORBIDDEN (403)");
-                            println!("├─ Behavior:       All paths are DISALLOWED (conservative)");
-                            println!("├─ Reason:         robots.txt returned 403 Forbidden");
-                            println!("╰─────────────────────────────────────────────────────────────");
+                            let json_output = serde_json::json!({
+                                "Robots.txt Check": {
+                                    "URL": url.to_string(),
+                                    "User-Agent": user_agent,
+                                    "Status": "⚠️  FORBIDDEN (403)",
+                                    "Behavior": "All paths are DISALLOWED (conservative)",
+                                    "Reason": "robots.txt returned 403 Forbidden",
+                                }
+                            });
+                            println!("{}", pretty_printer(json_output)?);
                         }
                         Some(robot_text) => {
                             let robot = Robot::new(robot_text);
                             let group_info = robot.get_group_info(&user_agent);
                             
-                            println!("╭─ Robots.txt Check ────────────────────────────────────────");
-                            println!("├─ URL:            {}", url);
-                            println!("├─ User-Agent:     {}", user_agent);
-                            println!("├─ Status:         ✓ OK");
-                            
+                            let mut check_obj = serde_json::json!({
+                                "URL": url.to_string(),
+                                "User-Agent": user_agent,
+                                "Status": "✓ OK",
+                            });
+
                             if let Some(info) = group_info {
-                                println!("├─ Matched Group:  {:?}", info.user_agents);
-                                println!("├─ Rules Found:    {} total ({} allow, {} disallow)", 
-                                    info.rule_count, info.allow_count, info.disallow_count);
+                                check_obj["Matched Group"] = serde_json::json!(format!("{:?}", info.user_agents));
+                                check_obj["Rules Found"] = serde_json::json!(format!(
+                                    "{} total ({} allow, {} disallow)",
+                                    info.rule_count, info.allow_count, info.disallow_count
+                                ));
                                 
                                 if let Some(delay) = info.crawl_delay {
-                                    println!("├─ Crawl-Delay:    {} seconds", delay);
+                                    check_obj["Crawl-Delay"] = serde_json::json!(format!("{} seconds", delay));
                                 }
                                 if let Some(rate) = info.request_rate {
-                                    println!("├─ Request-Rate:   {} requests/second", rate);
+                                    check_obj["Request-Rate"] = serde_json::json!(format!("{} requests/second", rate));
                                 }
                             } else {
-                                println!("├─ Matched Group:  * (wildcard)");
-                                println!("├─ Rules Found:    No specific rules for this user-agent");
+                                check_obj["Matched Group"] = serde_json::json!("* (wildcard)");
+                                check_obj["Rules Found"] = serde_json::json!("No specific rules for this user-agent");
                             }
                             
                             let sitemaps = robot.sitemaps();
                             if !sitemaps.is_empty() {
-                                println!("├─ Sitemaps:       {} found", sitemaps.len());
-                                for sitemap in sitemaps {
-                                    println!("│  ├─ {}", sitemap);
-                                }
+                                check_obj["Sitemaps"] = serde_json::json!(sitemaps);
                             }
-                            println!("╰─────────────────────────────────────────────────────────────");
+
+                            let json_output = serde_json::json!({
+                                "Robots.txt Check": check_obj
+                            });
+                            println!("{}", pretty_printer(json_output)?);
                         }
                         None => {
-                            println!("╭─ Robots.txt Check ────────────────────────────────────────");
-                            println!("├─ URL:            {}", url);
-                            println!("├─ User-Agent:     {}", user_agent);
-                            println!("├─ Status:         ℹ️  NOT FOUND (404)");
-                            println!("├─ Behavior:       All paths are ALLOWED");
-                            println!("├─ Reason:         robots.txt not found, default is permissive");
-                            println!("├─ Crawl-Delay:    (not specified)");
-                            println!("├─ Request-Rate:   (not specified)");
-                            println!("├─ Sitemaps:       (none found)");
-                            println!("╰─────────────────────────────────────────────────────────────");
+                            let json_output = serde_json::json!({
+                                "Robots.txt Check": {
+                                    "URL": url.to_string(),
+                                    "User-Agent": user_agent,
+                                    "Status": "ℹ️  NOT FOUND (404)",
+                                    "Behavior": "All paths are ALLOWED",
+                                    "Reason": "robots.txt not found, default is permissive",
+                                    "Crawl-Delay": "(not specified)",
+                                    "Request-Rate": "(not specified)",
+                                    "Sitemaps": "(none found)",
+                                }
+                            });
+                            println!("{}", pretty_printer(json_output)?);
                         }
                     }
                 }
