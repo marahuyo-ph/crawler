@@ -15,5 +15,5 @@ mod printer;
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
-    execute_commands(cli.command).await
+    execute_commands(cli).await
 }

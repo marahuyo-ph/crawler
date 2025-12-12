@@ -5,27 +5,26 @@ use tracing::{debug, warn, error};
 
 use crate::{
     check_robots::Robot,
-    commands::Commands,
+    commands::{Cli, Commands},
     extract_links::ExtractLinks,
     extract_metadata::PageMetadata,
     fetch::fetch_page,
     printer::pretty_printer,
 };
 
-pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
-    match command {
+pub async fn execute_commands(cli: Cli) -> anyhow::Result<()> {
+
+    let client = ClientBuilder::new()
+        .user_agent(cli.user_agent.clone())
+        .timeout(Duration::from_secs(cli.timeout as u64))
+        .danger_accept_invalid_certs(false)
+        .build()?;
+
+    match cli.command {
         Commands::Fetch {
             url,
-            user_agent,
-            timeout,
-            rate_limit: _,
             output_format,
         } => {
-            let client = ClientBuilder::new()
-                .user_agent(user_agent)
-                .timeout(Duration::from_secs(timeout as u64))
-                .danger_accept_invalid_certs(false)
-                .build()?;
 
             let page = fetch_page(&client, &url, 5, 3, Duration::from_secs(1)).await?;
 
@@ -61,19 +60,12 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
         }
         Commands::ExtractLinks {
             url,
-            user_agent,
-            timeout,
             rate_limit: _,
             internal_only,
             external_only,
             output_format,
         } => {
-            let client = ClientBuilder::new()
-                .user_agent(user_agent)
-                .timeout(Duration::from_secs(timeout as u64))
-                .danger_accept_invalid_certs(false)
-                .build()?;
-
+            
             let page = fetch_page(&client, &url, 5, 3, Duration::from_secs(1)).await?;
 
             if let Some(document) = page.parsed_html {
@@ -288,18 +280,11 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
         }
         Commands::ExtractMetadata {
             url,
-            user_agent,
-            timeout,
             rate_limit: _,
             include,
             output_format,
         } => {
-            let client = ClientBuilder::new()
-                .user_agent(user_agent)
-                .timeout(Duration::from_secs(timeout as u64))
-                .danger_accept_invalid_certs(false)
-                .build()?;
-
+            
             let page = fetch_page(&client, &url, 5, 3, Duration::from_secs(1)).await?;
 
             if let Some(document) = page.parsed_html {
@@ -500,13 +485,7 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                 ));
             }
         },
-        Commands::CheckRobot { url, user_agent, timeout, output_format } => {
-            
-            let client = ClientBuilder::new()
-                .user_agent(&user_agent)
-                .timeout(Duration::from_secs(timeout as u64))
-                .danger_accept_invalid_certs(false)
-                .build()?;
+        Commands::CheckRobot { url, output_format } => {
 
             let robots_url = url.join("robots.txt")?;
             debug!("Fetching robots.txt from: {}", robots_url);
@@ -557,7 +536,7 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                         Some(robot_text) if robot_text == "FORBIDDEN" => {
                             let json_output = serde_json::json!({
                                 "url": url.to_string(),
-                                "user_agent": user_agent,
+                                "user_agent": cli.user_agent,
                                 "status": "forbidden",
                                 "message": "robots.txt returned 403 Forbidden - treating all paths as disallowed",
                                 "crawl_delay": serde_json::Value::Null,
@@ -569,18 +548,18 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                         }
                         Some(robot_text) => {
                             let robot = Robot::new(robot_text);
-                            let group_info = robot.get_group_info(&user_agent);
+                            let group_info = robot.get_group_info(&cli.user_agent);
                             
                             let json_output = serde_json::json!({
                                 "url": url.to_string(),
-                                "user_agent": user_agent,
+                                "user_agent": cli.user_agent,
                                 "status": "ok",
                                 "matched_group": group_info.as_ref().map(|g| &g.user_agents),
                                 "rule_count": group_info.as_ref().map(|g| g.rule_count).unwrap_or(0),
                                 "allow_rules": group_info.as_ref().map(|g| g.allow_count).unwrap_or(0),
                                 "disallow_rules": group_info.as_ref().map(|g| g.disallow_count).unwrap_or(0),
-                                "crawl_delay": robot.crawl_delay(&user_agent),
-                                "request_rate": robot.request_rate(&user_agent),
+                                "crawl_delay": robot.crawl_delay(&cli.user_agent),
+                                "request_rate": robot.request_rate(&cli.user_agent),
                                 "sitemaps": robot.sitemaps(),
                             });
                             println!("{}", serde_json::to_string_pretty(&json_output)?);
@@ -588,7 +567,7 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                         None => {
                             let json_output = serde_json::json!({
                                 "url": url.to_string(),
-                                "user_agent": user_agent,
+                                "user_agent": cli.user_agent,
                                 "status": "not_found",
                                 "message": "robots.txt not found (404) - treating as all paths allowed",
                                 "crawl_delay": serde_json::Value::Null,
@@ -606,7 +585,7 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                             let json_output = serde_json::json!({
                                 "Robots.txt Check": {
                                     "URL": url.to_string(),
-                                    "User-Agent": user_agent,
+                                    "User-Agent": cli.user_agent,
                                     "Status": "⚠️  FORBIDDEN (403)",
                                     "Behavior": "All paths are DISALLOWED (conservative)",
                                     "Reason": "robots.txt returned 403 Forbidden",
@@ -616,11 +595,11 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                         }
                         Some(robot_text) => {
                             let robot = Robot::new(robot_text);
-                            let group_info = robot.get_group_info(&user_agent);
+                            let group_info = robot.get_group_info(&cli.user_agent);
                             
                             let mut check_obj = serde_json::json!({
                                 "URL": url.to_string(),
-                                "User-Agent": user_agent,
+                                "User-Agent": cli.user_agent,
                                 "Status": "✓ OK",
                             });
 
@@ -656,7 +635,7 @@ pub async fn execute_commands(command: Commands) -> anyhow::Result<()> {
                             let json_output = serde_json::json!({
                                 "Robots.txt Check": {
                                     "URL": url.to_string(),
-                                    "User-Agent": user_agent,
+                                    "User-Agent": cli.user_agent,
                                     "Status": "ℹ️  NOT FOUND (404)",
                                     "Behavior": "All paths are ALLOWED",
                                     "Reason": "robots.txt not found, default is permissive",
@@ -701,7 +680,7 @@ mod test {
         let args: Vec<&str> = command.split_whitespace().collect();
         let cli = Cli::parse_from(&args);
 
-        if let Err(e) = execute_commands(cli.command).await {
+        if let Err(e) = execute_commands(cli).await {
             drop(python_server);
             return Err(e);
         }

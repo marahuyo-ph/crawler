@@ -12,15 +12,6 @@ pub enum Commands {
     Fetch {
         /// Target URL to fetch (required)
         url: Url,
-        /// Custom User-Agent string (default: "Marahuyo-Crawler/0.1.0")
-        #[arg(long, default_value = "Marahuyo-Crawler/0.1.0")]
-        user_agent: String,
-        /// HTTP request timeout in seconds (default: 30)
-        #[arg(long, default_value_t = 30)]
-        timeout: i64,
-        /// Max requests per minute per domain (default: 10, resets per CLI invocation)
-        #[arg(long, default_value_t = 10)]
-        rate_limit: i64,
         /// Output format: json or default text (default: text)
         #[arg(long, value_parser, default_value = "text")]
         output_format: OutputFormat,
@@ -28,12 +19,6 @@ pub enum Commands {
     ExtractLinks {
         /// Target URL to fetch (required)
         url: Url,
-        /// Custom User-Agent string (default: "Marahuyo-Crawler/0.1.0")
-        #[arg(long, default_value = "Marahuyo-Crawler/0.1.0")]
-        user_agent: String,
-        /// HTTP request timeout in seconds (default: 30)
-        #[arg(long, default_value_t = 30)]
-        timeout: i64,
         /// Max requests per minute per domain (default: 10, resets per CLI invocation)
         #[arg(long, default_value_t = 10)]
         rate_limit: i64,
@@ -50,12 +35,6 @@ pub enum Commands {
     ExtractMetadata {
         /// Target URL to fetch (required)
         url: Url,
-        /// Custom User-Agent string (default: "Marahuyo-Crawler/0.1.0")
-        #[arg(long, default_value = "Marahuyo-Crawler/0.1.0")]
-        user_agent: String,
-        /// HTTP request timeout in seconds (default: 30)
-        #[arg(long, default_value_t = 30)]
-        timeout: i64,
         /// Max requests per minute per domain (default: 10, resets per CLI invocation)
         #[arg(long, default_value_t = 10)]
         rate_limit: i64,
@@ -69,12 +48,6 @@ pub enum Commands {
     CheckRobot {
         /// Target URL to fetch (required)
         url: Url,
-        /// Custom User-Agent string (default: "Marahuyo-Crawler/0.1.0")
-        #[arg(long, default_value = "Marahuyo-Crawler/0.1.0")]
-        user_agent: String,
-        /// HTTP request timeout in seconds (default: 30)
-        #[arg(long, default_value_t = 30)]
-        timeout: i64,
         /// Output format: json or default text (default: text)
         #[arg(long, value_parser, default_value = "text")]
         output_format: OutputFormat,
@@ -86,4 +59,10 @@ pub enum Commands {
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
+    /// Custom User-Agent string (default: "Marahuyo-Crawler/0.1.0")
+    #[arg(long, default_value = "Marahuyo-Crawler/0.1.0")]
+    pub user_agent: String,
+    /// HTTP request timeout in seconds (default: 30)
+    #[arg(long, default_value_t = 30)]
+    pub timeout: i64,
 }
