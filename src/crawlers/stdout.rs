@@ -1,28 +1,28 @@
-use std::collections::{VecDeque, HashSet};
+use clap::Args;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Mutex;
 use std::time::Duration;
-use clap::Args;
 
 use anyhow::anyhow;
 use reqwest::StatusCode;
 use scraper::Selector;
+use tracing::{debug, error, warn};
 use url::Url;
-use tracing::{debug, warn, error};
 
 use crate::check_robots::Robot;
 use crate::extract_links::ExtractLinks;
 use crate::traits::IAsyncCrawler;
 
-#[derive(Debug,Clone,Args)]
+#[derive(Debug, Clone, Args)]
 pub struct StdOutCrawlerOptions {
-  pub url:Url,
+    pub url: Vec<Url>,
 }
 
 pub struct StdOutCrawler {
     client: reqwest::Client,
     queue: VecDeque<Url>,
     visited: HashSet<String>,
-    robot:Option<Robot>,
+    robots_cache: HashMap<String, Robot>,
     max_retries: i32,
     max_redirects: i32,
     retry_delay: Duration,
@@ -34,7 +34,7 @@ impl StdOutCrawler {
             client: client.clone(),
             queue: VecDeque::new(),
             visited: HashSet::new(),
-            robot:None,
+            robots_cache: HashMap::new(),
             max_retries: 3,
             max_redirects: 5,
             retry_delay: Duration::from_millis(100),
@@ -44,7 +44,11 @@ impl StdOutCrawler {
 
 impl IAsyncCrawler for StdOutCrawler {
     async fn check_robot_policy(&self, url: &url::Url) -> anyhow::Result<bool> {
-        match &self.robot {
+        let domain = url
+            .host_str()
+            .ok_or_else(|| anyhow!("Invalid URL: no host"))?;
+
+        match self.robots_cache.get(domain) {
             Some(robot) => Ok(robot.allow(url.as_str(), "Marahuyo")),
             None => Ok(true), // Allow by default if no robots.txt loaded
         }
@@ -110,13 +114,13 @@ impl IAsyncCrawler for StdOutCrawler {
             match response.status() {
                 StatusCode::OK => {
                     debug!("Received valid HTML response from: {}", current_url);
-                    
+
                     if let Some(content_type) = response.headers().get("Content-Type") {
                         if !content_type.to_str()?.contains("text/html") {
                             return Err(anyhow!("Response is not HTML"));
                         }
                     }
-                    
+
                     return Ok(response);
                 }
                 StatusCode::MOVED_PERMANENTLY | StatusCode::FOUND => {
@@ -196,15 +200,15 @@ impl IAsyncCrawler for StdOutCrawler {
         html: &scraper::Html,
     ) -> anyhow::Result<Vec<url::Url>> {
         let extracted = ExtractLinks::extract(url, html)?;
-        
+
         // Combine internal and external links
         let mut links = Vec::new();
-        for link_info in extracted.internal.iter() {
+        for link_info in extracted.internal.iter().chain(extracted.external.iter()) {
             if let Ok(parsed_url) = Url::parse(&link_info.url) {
                 links.push(parsed_url);
             }
         }
-        
+
         Ok(links)
     }
 
@@ -225,7 +229,7 @@ impl IAsyncCrawler for StdOutCrawler {
         for url in urls.into_iter() {
             let url_str = url.to_string();
             if !self.visited.contains(&url_str) {
-              self.queue.push_back(url);
+                self.queue.push_back(url);
             }
         }
         Ok(())
@@ -291,7 +295,7 @@ impl IAsyncCrawler for StdOutCrawler {
         println!("   Links found: {}", link_count);
         println!("   Content-Type: {}", content_type);
         println!("   Content-Length: {} bytes", content_length);
-        
+
         if !internal_links.is_empty() {
             println!("   🔗 Internal links to queue ({}): ", internal_links.len());
             for (i, link) in internal_links.iter().take(5).enumerate() {
@@ -304,7 +308,7 @@ impl IAsyncCrawler for StdOutCrawler {
 
         Ok(())
     }
-    
+
     async fn fetch_robot_txt(&self, url: &Url) -> anyhow::Result<Option<Robot>> {
         let robots_url = match url.port() {
             Some(port) => format!(
@@ -325,7 +329,7 @@ impl IAsyncCrawler for StdOutCrawler {
                 if response.status() == StatusCode::NOT_FOUND {
                     return Ok(None);
                 }
-                
+
                 let content = response.text().await?;
                 let robot = Robot::new(content);
                 Ok(Some(robot))
@@ -333,15 +337,21 @@ impl IAsyncCrawler for StdOutCrawler {
             Err(_) => Ok(None), // If can't fetch, return None
         }
     }
-    
-    async fn set_robot_txt(&mut self,robot:Robot) -> anyhow::Result<()> {
 
-        self.robot = Some(robot);
+    async fn set_robot_txt(&mut self, url: &Url, robot: Robot) -> anyhow::Result<()> {
+        let domain = url
+            .host_str()
+            .ok_or_else(|| anyhow!("Invalid URL: no host"))?;
 
+        self.robots_cache.insert(domain.to_string(), robot);
         Ok(())
     }
-    
-    async fn get_robot_txt(&self) -> anyhow::Result<Option<Robot>> {
-        Ok(self.robot.clone())
+
+    async fn get_robot_txt(&self, url: &Url) -> anyhow::Result<Option<Robot>> {
+        let domain = url
+            .host_str()
+            .ok_or_else(|| anyhow!("Invalid URL: no host"))?;
+
+        Ok(self.robots_cache.get(domain).cloned())
     }
 }

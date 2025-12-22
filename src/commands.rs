@@ -1,7 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use url::Url;
 
-use crate::crawlers::stdout::StdOutCrawlerOptions;
+use crate::crawlers::{sqlite::SqliteCrawlerOptions, stdout::StdOutCrawlerOptions};
 
 #[derive(Debug, Clone, ValueEnum)]
 pub enum OutputFormat {
@@ -11,7 +10,7 @@ pub enum OutputFormat {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    Crawl(StdOutCrawlerOptions)
+    Crawl(SqliteCrawlerOptions),
 }
 
 #[derive(Parser, Debug)]

@@ -20,6 +20,7 @@ create table "pages"(
   status_code integer,
   content_type text,
   content_length integer,
+  html_content text,
   language text
 ,
   crawled_at datetime not null default current_timestamp,

@@ -1,2 +1,2 @@
-pub mod stdout;
 pub mod sqlite;
+pub mod stdout;

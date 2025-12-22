@@ -21,6 +21,8 @@ pub struct Model {
     pub content_type: Option<String>,
     pub content_length: Option<i64>,
     #[sea_orm(column_type = "Text", nullable)]
+    pub html_content: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
     pub language: Option<String>,
     #[sea_orm(ignore, column_type = "custom(\"datetime\")", select_as = "text")]
     pub crawled_at: String,

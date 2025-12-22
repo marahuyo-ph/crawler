@@ -70,7 +70,11 @@ impl ExtractLinks {
     }
 
     /// Create LinkInfo from an anchor element
-    fn create_link_info(&self, element: &scraper::element_ref::ElementRef, _href: &str) -> LinkInfo {
+    fn create_link_info(
+        &self,
+        element: &scraper::element_ref::ElementRef,
+        _href: &str,
+    ) -> LinkInfo {
         let text = element
             .text()
             .collect::<String>()
@@ -154,7 +158,10 @@ impl ExtractLinks {
                 debug!("Found external link: {} (text: {})", parsed, link_info.text);
                 self.external.push(link_info);
             } else if href.starts_with('/') || href.starts_with("./") || href.starts_with("../") {
-                debug!("Found relative internal link: {} (text: {})", parsed, link_info.text);
+                debug!(
+                    "Found relative internal link: {} (text: {})",
+                    parsed, link_info.text
+                );
                 self.internal.push(link_info);
             }
         } else {
