@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use url::Url;
 
+use crate::crawlers::stdout::StdOutCrawlerOptions;
+
 #[derive(Debug, Clone, ValueEnum)]
 pub enum OutputFormat {
     Json,
@@ -9,49 +11,7 @@ pub enum OutputFormat {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    Fetch {
-        /// Target URL to fetch (required)
-        url: Url,
-        /// Output format: json or default text (default: text)
-        #[arg(long, value_parser, default_value = "text")]
-        output_format: OutputFormat,
-    },
-    ExtractLinks {
-        /// Target URL to fetch (required)
-        url: Url,
-        /// Max requests per minute per domain (default: 10, resets per CLI invocation)
-        #[arg(long, default_value_t = 10)]
-        rate_limit: i64,
-        /// Only return internal links
-        #[arg(long)]
-        internal_only: bool,
-        /// Only return external links
-        #[arg(long)]
-        external_only: bool,
-        /// Output format: json or default text (default: text)
-        #[arg(long, value_parser, default_value = "text")]
-        output_format: OutputFormat,
-    },
-    ExtractMetadata {
-        /// Target URL to fetch (required)
-        url: Url,
-        /// Max requests per minute per domain (default: 10, resets per CLI invocation)
-        #[arg(long, default_value_t = 10)]
-        rate_limit: i64,
-        /// Comma-separated optional fields (hreflang, canonical, author, publisher)
-        #[arg(long)]
-        include: Vec<String>,
-        /// Output format: json or default text (default: text)
-        #[arg(long, value_parser, default_value = "text")]
-        output_format: OutputFormat,
-    },
-    CheckRobot {
-        /// Target URL to fetch (required)
-        url: Url,
-        /// Output format: json or default text (default: text)
-        #[arg(long, value_parser, default_value = "text")]
-        output_format: OutputFormat,
-    }
+    Crawl(StdOutCrawlerOptions)
 }
 
 #[derive(Parser, Debug)]
@@ -59,10 +19,4 @@ pub enum Commands {
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
-    /// Custom User-Agent string (default: "Marahuyo-Crawler/0.1.0")
-    #[arg(long, default_value = "Marahuyo-Crawler/0.1.0")]
-    pub user_agent: String,
-    /// HTTP request timeout in seconds (default: 30)
-    #[arg(long, default_value_t = 30)]
-    pub timeout: i64,
 }

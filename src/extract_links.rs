@@ -30,14 +30,26 @@ pub struct ExtractLinks {
 }
 
 impl ExtractLinks {
-    pub fn extract(url: &Url, document: &scraper::Html) -> anyhow::Result<Self> {
-        let mut internal = Vec::new();
-        let mut external = Vec::new();
-        let mut mailto = Vec::new();
-        let mut phone = Vec::new();
-        let mut anchor = Vec::new();
-        let mut javascript = Vec::new();
+    pub fn new() -> Self {
+        ExtractLinks {
+            internal: Vec::new(),
+            external: Vec::new(),
+            mailto: Vec::new(),
+            phone: Vec::new(),
+            anchor: Vec::new(),
+            javascript: Vec::new(),
+        }
+    }
 
+    pub fn extract(url: &Url, document: &scraper::Html) -> anyhow::Result<Self> {
+        let mut extractor = Self::new();
+        extractor.parse(url, document)?;
+        extractor.deduplicate();
+        Ok(extractor)
+    }
+
+    /// Parse all links from the HTML document
+    pub fn parse(&mut self, url: &Url, document: &scraper::Html) -> anyhow::Result<()> {
         let href_selector = Selector::parse("a[href]").unwrap();
         let source_domain = url.domain().unwrap_or("");
 
@@ -45,131 +57,140 @@ impl ExtractLinks {
 
         for element in document.select(&href_selector) {
             if let Some(href) = element.value().attr("href") {
-                // Skip empty hrefs
                 if href.is_empty() {
                     continue;
                 }
 
-                // Extract link text and attributes
-                let text = element
-                    .text()
-                    .collect::<String>()
-                    .trim()
-                    .chars()
-                    .take(100)
-                    .collect::<String>();
-
-                let title = element.value().attr("title").map(|s| s.to_string());
-                let rel = element.value().attr("rel").map(|s| s.to_string());
-                let target = element.value().attr("target").map(|s| s.to_string());
-
-                // Create LinkInfo helper
-                let create_link_info = |url_str: String| -> LinkInfo {
-                    LinkInfo {
-                        url: url_str,
-                        text: text.clone(),
-                        title: title.clone(),
-                        rel: rel.clone(),
-                        target: target.clone(),
-                    }
-                };
-
-                // Categorize by protocol/type
-                if href.starts_with("javascript:") {
-                    debug!("Found javascript link: {} (text: {})", href, text);
-                    javascript.push(create_link_info(href.to_string()));
-                } else if href.starts_with("mailto:") {
-                    debug!("Found mailto link: {} (text: {})", href, text);
-                    mailto.push(create_link_info(href.to_string()));
-                } else if href.starts_with("tel:") {
-                    debug!("Found phone link: {} (text: {})", href, text);
-                    phone.push(create_link_info(href.to_string()));
-                } else if href.starts_with("#") {
-                    // Anchor/fragment link
-                    debug!("Found anchor link: {} (text: {})", href, text);
-                    if let Ok(anchor_url) = url.join(href) {
-                        anchor.push(create_link_info(anchor_url.to_string()));
-                    }
-                } else {
-                    // Try to parse as absolute or relative URL
-                    let parsed_url = if href.starts_with("http://") || href.starts_with("https://")
-                    {
-                        Url::parse(href)
-                    } else {
-                        url.join(href)
-                    };
-
-                    if let Ok(parsed) = parsed_url {
-                        let link_domain = parsed.domain().unwrap_or("");
-
-                        if link_domain == source_domain && !source_domain.is_empty() {
-                            debug!("Found internal link: {} (text: {})", parsed, text);
-                            internal.push(create_link_info(parsed.to_string()));
-                        } else if !link_domain.is_empty() {
-                            debug!("Found external link: {} (text: {})", parsed, text);
-                            external.push(create_link_info(parsed.to_string()));
-                        } else if href.starts_with('/')
-                            || href.starts_with("./")
-                            || href.starts_with("../")
-                        {
-                            // Relative path without domain - treat as internal
-                            debug!("Found relative internal link: {} (text: {})", parsed, text);
-                            internal.push(create_link_info(parsed.to_string()));
-                        }
-                    } else {
-                        warn!("Failed to parse href: {}", href);
-                    }
-                }
+                let link_info = self.create_link_info(&element, href);
+                self.categorize_link(url, href, source_domain, link_info);
             }
         }
 
-        // Track counts before deduplication
-        let internal_before = internal.len();
-        let external_before = external.len();
-        let mailto_before = mailto.len();
-        let phone_before = phone.len();
-        let anchor_before = anchor.len();
-        let javascript_before = javascript.len();
+        Ok(())
+    }
 
-        // Deduplicate links using HashSet based on URL
-        internal = internal
-            .into_iter()
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect();
-        external = external
-            .into_iter()
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect();
-        mailto = mailto
-            .into_iter()
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect();
-        phone = phone
-            .into_iter()
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect();
-        anchor = anchor
-            .into_iter()
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect();
-        javascript = javascript
-            .into_iter()
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect();
+    /// Create LinkInfo from an anchor element
+    fn create_link_info(&self, element: &scraper::element_ref::ElementRef, _href: &str) -> LinkInfo {
+        let text = element
+            .text()
+            .collect::<String>()
+            .trim()
+            .chars()
+            .take(100)
+            .collect::<String>();
 
-        // Track counts after deduplication
-        let internal_after = internal.len();
-        let external_after = external.len();
-        let mailto_after = mailto.len();
-        let phone_after = phone.len();
-        let anchor_after = anchor.len();
-        let javascript_after = javascript.len();
+        let title = element.value().attr("title").map(|s| s.to_string());
+        let rel = element.value().attr("rel").map(|s| s.to_string());
+        let target = element.value().attr("target").map(|s| s.to_string());
+
+        LinkInfo {
+            url: String::new(), // Will be set by categorize_link
+            text,
+            title,
+            rel,
+            target,
+        }
+    }
+
+    /// Categorize link by type and add to appropriate vector
+    fn categorize_link(
+        &mut self,
+        url: &Url,
+        href: &str,
+        source_domain: &str,
+        mut link_info: LinkInfo,
+    ) {
+        if href.starts_with("javascript:") {
+            debug!("Found javascript link: {} (text: {})", href, link_info.text);
+            link_info.url = href.to_string();
+            self.javascript.push(link_info);
+        } else if href.starts_with("mailto:") {
+            debug!("Found mailto link: {} (text: {})", href, link_info.text);
+            link_info.url = href.to_string();
+            self.mailto.push(link_info);
+        } else if href.starts_with("tel:") {
+            debug!("Found phone link: {} (text: {})", href, link_info.text);
+            link_info.url = href.to_string();
+            self.phone.push(link_info);
+        } else if href.starts_with("#") {
+            self.add_anchor_link(url, href, link_info);
+        } else {
+            self.add_web_link(url, href, source_domain, link_info);
+        }
+    }
+
+    /// Handle anchor/fragment links
+    fn add_anchor_link(&mut self, url: &Url, href: &str, mut link_info: LinkInfo) {
+        debug!("Found anchor link: {} (text: {})", href, link_info.text);
+        if let Ok(anchor_url) = url.join(href) {
+            link_info.url = anchor_url.to_string();
+            self.anchor.push(link_info);
+        }
+    }
+
+    /// Handle HTTP/HTTPS web links, categorizing as internal or external
+    fn add_web_link(
+        &mut self,
+        url: &Url,
+        href: &str,
+        source_domain: &str,
+        mut link_info: LinkInfo,
+    ) {
+        let parsed_url = if href.starts_with("http://") || href.starts_with("https://") {
+            Url::parse(href)
+        } else {
+            url.join(href)
+        };
+
+        if let Ok(parsed) = parsed_url {
+            let link_domain = parsed.domain().unwrap_or("");
+
+            link_info.url = parsed.to_string();
+
+            if link_domain == source_domain && !source_domain.is_empty() {
+                debug!("Found internal link: {} (text: {})", parsed, link_info.text);
+                self.internal.push(link_info);
+            } else if !link_domain.is_empty() {
+                debug!("Found external link: {} (text: {})", parsed, link_info.text);
+                self.external.push(link_info);
+            } else if href.starts_with('/') || href.starts_with("./") || href.starts_with("../") {
+                debug!("Found relative internal link: {} (text: {})", parsed, link_info.text);
+                self.internal.push(link_info);
+            }
+        } else {
+            warn!("Failed to parse href: {}", href);
+        }
+    }
+
+    /// Remove duplicate links from all categories
+    pub fn deduplicate(&mut self) {
+        let internal_before = self.internal.len();
+        let external_before = self.external.len();
+        let mailto_before = self.mailto.len();
+        let phone_before = self.phone.len();
+        let anchor_before = self.anchor.len();
+        let javascript_before = self.javascript.len();
+
+        self.internal = self.deduplicate_vec(&self.internal);
+        self.external = self.deduplicate_vec(&self.external);
+        self.mailto = self.deduplicate_vec(&self.mailto);
+        self.phone = self.deduplicate_vec(&self.phone);
+        self.anchor = self.deduplicate_vec(&self.anchor);
+        self.javascript = self.deduplicate_vec(&self.javascript);
+
+        let internal_after = self.internal.len();
+        let external_after = self.external.len();
+        let mailto_after = self.mailto.len();
+        let phone_after = self.phone.len();
+        let anchor_after = self.anchor.len();
+        let javascript_after = self.javascript.len();
+
+        let total_removed = (internal_before - internal_after)
+            + (external_before - external_after)
+            + (mailto_before - mailto_after)
+            + (phone_before - phone_after)
+            + (anchor_before - anchor_after)
+            + (javascript_before - javascript_after);
 
         debug!(
             internal_count = %format!("{} -> {}", internal_before, internal_after),
@@ -178,17 +199,18 @@ impl ExtractLinks {
             phone_count = %format!("{} -> {}", phone_before, phone_after),
             anchor_count = %format!("{} -> {}", anchor_before, anchor_after),
             javascript_count = %format!("{} -> {}", javascript_before, javascript_after),
-            duplicates_removed = %format!("{} total", (internal_before - internal_after) + (external_before - external_after) + (mailto_before - mailto_after) + (phone_before - phone_after) + (anchor_before - anchor_after) + (javascript_before - javascript_after)),
+            duplicates_removed = %total_removed,
             "Link extraction and deduplication complete"
         );
+    }
 
-        Ok(ExtractLinks {
-            internal,
-            external,
-            mailto,
-            phone,
-            anchor,
-            javascript,
-        })
+    /// Deduplicate a vector of LinkInfo using HashSet
+    fn deduplicate_vec(&self, links: &[LinkInfo]) -> Vec<LinkInfo> {
+        links
+            .iter()
+            .cloned()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect()
     }
 }

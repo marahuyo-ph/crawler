@@ -1,5 +1,5 @@
-use url::Url;
 use tracing::{debug, warn};
+use url::Url;
 
 const MAX_ROBOTS_TXT_SIZE: usize = 500 * 1024; // 500 KiB
 
@@ -33,7 +33,7 @@ pub struct Group {
 }
 
 /// Represents the parsed robots.txt file
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Robot {
     groups: Vec<Group>,
     sitemaps: Vec<String>,
@@ -44,7 +44,7 @@ impl Robot {
     /// This parser is lenient and will skip unparseable lines
     pub fn new(text_file: String) -> Self {
         debug!("Parsing robots.txt (size: {} bytes)", text_file.len());
-        
+
         // Check size limit (500 KiB)
         if text_file.len() > MAX_ROBOTS_TXT_SIZE {
             warn!("robots.txt exceeds 500 KiB limit, ignoring");
@@ -76,7 +76,11 @@ impl Robot {
                     // Finalize previous group if exists
                     if let Some(group) = current_group.take() {
                         if !group.user_agents.is_empty() {
-                            debug!("Finalized user-agent group: {:?} with {} rules", group.user_agents, group.rules.len());
+                            debug!(
+                                "Finalized user-agent group: {:?} with {} rules",
+                                group.user_agents,
+                                group.rules.len()
+                            );
                             groups.push(group);
                         }
                     }
@@ -145,12 +149,20 @@ impl Robot {
         // Finalize last group
         if let Some(group) = current_group {
             if !group.user_agents.is_empty() {
-                debug!("Finalized last user-agent group: {:?} with {} rules", group.user_agents, group.rules.len());
+                debug!(
+                    "Finalized last user-agent group: {:?} with {} rules",
+                    group.user_agents,
+                    group.rules.len()
+                );
                 groups.push(group);
             }
         }
 
-        debug!("Parsed robots.txt: {} user-agent groups, {} sitemaps", groups.len(), sitemaps.len());
+        debug!(
+            "Parsed robots.txt: {} user-agent groups, {} sitemaps",
+            groups.len(),
+            sitemaps.len()
+        );
         Robot { groups, sitemaps }
     }
 
@@ -183,7 +195,9 @@ impl Robot {
         // Find matching group for user-agent
         if let Some(group) = self.find_group(user_agent) {
             // Find longest matching rule
-            if let Some(matching_rule) = self.find_longest_matching_rule(&group.rules, &normalized_path) {
+            if let Some(matching_rule) =
+                self.find_longest_matching_rule(&group.rules, &normalized_path)
+            {
                 return matching_rule.0.allow;
             }
         }
@@ -197,7 +211,7 @@ impl Robot {
     /// Per RFC 9309: "If more than one group applies to a user-agent, the most specific match should be used"
     pub fn find_group(&self, user_agent: &str) -> Option<&Group> {
         let user_agent_lower = user_agent.to_lowercase();
-        
+
         debug!("Finding matching group for user-agent: '{}'", user_agent);
 
         // First, try exact match (case-insensitive)
@@ -214,7 +228,7 @@ impl Robot {
         // Find the longest prefix match for better specificity
         let mut longest_prefix_match: Option<&Group> = None;
         let mut longest_prefix_len = 0;
-        
+
         for group in &self.groups {
             for agent in &group.user_agents {
                 let agent_lower = agent.to_lowercase();
@@ -222,14 +236,21 @@ impl Robot {
                     if agent_lower.len() > longest_prefix_len {
                         longest_prefix_match = Some(group);
                         longest_prefix_len = agent_lower.len();
-                        debug!("Found prefix match: '{}' (length: {})", agent, agent_lower.len());
+                        debug!(
+                            "Found prefix match: '{}' (length: {})",
+                            agent,
+                            agent_lower.len()
+                        );
                     }
                 }
             }
         }
-        
+
         if let Some(group) = longest_prefix_match {
-            debug!("Matched prefix user-agent with {} char(s)", longest_prefix_len);
+            debug!(
+                "Matched prefix user-agent with {} char(s)",
+                longest_prefix_len
+            );
             return Some(group);
         }
 
@@ -267,7 +288,12 @@ impl Robot {
                     longest_match = Some(rule);
                     longest_pattern_len = rule.pattern.len();
                     match_reason = format!("pattern '{}'", rule.pattern);
-                    debug!("Found matching rule: pattern='{}' (len: {}) allow={}", rule.pattern, rule.pattern.len(), rule.allow);
+                    debug!(
+                        "Found matching rule: pattern='{}' (len: {}) allow={}",
+                        rule.pattern,
+                        rule.pattern.len(),
+                        rule.allow
+                    );
                 }
             }
         }
@@ -355,7 +381,7 @@ impl Robot {
     pub fn sitemaps(&self) -> Vec<String> {
         self.sitemaps.clone()
     }
-    
+
     /// Returns detailed information about matched rules for a user-agent
     /// Useful for human-readable output showing which rules apply
     pub fn get_group_info(&self, user_agent: &str) -> Option<GroupInfo> {

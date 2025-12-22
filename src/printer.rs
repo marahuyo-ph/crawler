@@ -1,6 +1,6 @@
 pub fn pretty_printer(value: serde_json::Value) -> anyhow::Result<String> {
     let mut output = String::new();
-    
+
     // For root objects with a single key that's an object, unwrap it
     if let serde_json::Value::Object(map) = &value {
         if map.len() == 1 {
@@ -16,18 +16,18 @@ pub fn pretty_printer(value: serde_json::Value) -> anyhow::Result<String> {
                         output.push_str(&"─".repeat(line_width.saturating_sub(current_len)));
                     }
                     output.push('\n');
-                    
+
                     // Print the nested object's entries directly
                     let entries: Vec<_> = nested_map.iter().collect();
                     let len = entries.len();
                     for (idx, (key, val)) in entries.iter().enumerate() {
                         let is_last = idx == len - 1;
                         let prefix = if is_last { "╰─" } else { "├─" };
-                        
+
                         output.push_str(prefix);
                         output.push(' ');
                         output.push_str(key);
-                        
+
                         match val {
                             serde_json::Value::Object(_) | serde_json::Value::Array(_) => {
                                 output.push_str(": ");
@@ -41,7 +41,7 @@ pub fn pretty_printer(value: serde_json::Value) -> anyhow::Result<String> {
                             }
                         }
                     }
-                    
+
                     // Print closing border
                     output.push_str("╰");
                     output.push_str(&"─".repeat(59));
@@ -51,7 +51,7 @@ pub fn pretty_printer(value: serde_json::Value) -> anyhow::Result<String> {
             }
         }
     }
-    
+
     // Fall back to normal formatting for other structures
     format_value(&value, &mut output, 0, true);
     Ok(output)
@@ -120,12 +120,7 @@ fn format_object(
     }
 }
 
-fn format_array(
-    arr: &[serde_json::Value],
-    output: &mut String,
-    depth: usize,
-    _is_root: bool,
-) {
+fn format_array(arr: &[serde_json::Value], output: &mut String, depth: usize, _is_root: bool) {
     if arr.is_empty() {
         return;
     }
