@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::crawlers::{sqlite::SqliteCrawlerOptions, stdout::StdOutCrawlerOptions};
+use crate::crawlers::sqlite::SqliteCrawlerOptions;
 
 #[derive(Debug, Clone, ValueEnum)]
 pub enum OutputFormat {

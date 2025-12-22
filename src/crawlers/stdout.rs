@@ -1,6 +1,6 @@
 use clap::Args;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Mutex;
+
 use std::time::Duration;
 
 use anyhow::anyhow;

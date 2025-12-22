@@ -2,7 +2,7 @@ use clap::Parser;
 use tracing_subscriber::{self,EnvFilter, fmt, prelude::*};
 
 use crate::{
-    cli::execute_commands, commands::Cli, crawlers::stdout::StdOutCrawler, traits::IAsyncCrawler,
+    cli::execute_commands, commands::Cli,
 };
 
 mod check_robots;

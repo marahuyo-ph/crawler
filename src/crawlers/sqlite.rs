@@ -48,6 +48,7 @@ impl SqliteCrawler {
 
         Ok(())
     }
+
 }
 
 impl IAsyncCrawler for SqliteCrawler {
@@ -332,6 +333,9 @@ impl IAsyncCrawler for SqliteCrawler {
 
         // Parse links from HTML and save them to database
         let selector = Selector::parse("a[href]").unwrap();
+
+        let mut links = vec![];
+
         for element in html.select(&selector) {
             if let Some(href) = element.value().attr("href") {
                 let link_text = element.text().collect::<Vec<_>>().join("");
@@ -347,15 +351,11 @@ impl IAsyncCrawler for SqliteCrawler {
                     ..Default::default()
                 };
 
-                match link.insert(&self.database).await {
-                    Ok(_) => {}
-                    Err(e) => {
-                        eprintln!("Failed to save link {}: {}", href, e);
-                        continue;
-                    }
-                }
+                links.push(link);
             }
         }
+        
+        crate::models::links::Entity::insert_many(links).exec(&self.database).await?;
 
         Ok(())
     }

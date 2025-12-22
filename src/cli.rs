@@ -5,7 +5,6 @@ use sea_orm::{ActiveModelTrait, ConnectOptions, Database};
 use crate::{
     commands::{Cli, Commands},
     crawlers::sqlite::SqliteCrawler,
-    models::prelude::*,
     traits::IAsyncCrawler,
 };
 
