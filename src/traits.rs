@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use url::Url;
 use crate::check_robots::Robot;
 
@@ -6,6 +8,7 @@ pub trait IAsyncCrawler {
     async fn check_robot_policy(&self, url: &Url) -> anyhow::Result<bool>;
     async fn fetch_robot_txt(&self, url: &Url) -> anyhow::Result<Option<Robot>>;
     async fn set_robot_txt(&mut self,robot:Robot) -> anyhow::Result<()>;
+    async fn get_robot_txt(&self) -> anyhow::Result<Option<Robot>>;
 
     // Fetching Logic
     async fn fetch_page(&self, url: &Url) -> anyhow::Result<reqwest::Response>;
@@ -50,6 +53,12 @@ pub trait IAsyncCrawler {
             // Check robot policy, skip on error
             if !self.check_robot_policy(&next_url).await.unwrap_or(false) {
                 continue;
+            }
+
+            if let Some(robot) = self.get_robot_txt().await? {
+                let delay = robot.crawl_delay("*").unwrap_or_default();
+                
+                tokio::time::sleep(Duration::from_secs_f64(delay)).await;
             }
 
             if self.has_seen(&next_url).await {

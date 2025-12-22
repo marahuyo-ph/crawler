@@ -340,4 +340,8 @@ impl IAsyncCrawler for StdOutCrawler {
 
         Ok(())
     }
+    
+    async fn get_robot_txt(&self) -> anyhow::Result<Option<Robot>> {
+        Ok(self.robot.clone())
+    }
 }
