@@ -4,7 +4,7 @@ use reqwest::ClientBuilder;
 use tracing::{debug, error, warn};
 
 use crate::{
-    check_robots::Robot, commands::{Cli, Commands}, crawlers::stdout::StdOutCrawler, extract_links::ExtractLinks, extract_metadata::PageMetadata, fetch::fetch_page, printer::pretty_printer, traits::IAsyncCrawler
+    check_robots::Robot, commands::{Cli, Commands}, crawlers::stdout::StdOutCrawler, extract_links::ExtractLinks,  traits::IAsyncCrawler
 };
 
 pub async fn execute_commands(cli: Cli) -> anyhow::Result<()> {

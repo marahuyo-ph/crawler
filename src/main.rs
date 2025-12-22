@@ -8,9 +8,6 @@ mod cli;
 mod commands;
 mod crawlers;
 mod extract_links;
-mod extract_metadata;
-mod fetch;
-mod printer;
 mod traits;
 mod utils;
 

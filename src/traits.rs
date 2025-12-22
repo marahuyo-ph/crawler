@@ -32,6 +32,13 @@ pub trait IAsyncCrawler {
     ) -> anyhow::Result<()>;
 
     async fn start(&mut self, seed_url: Url) -> anyhow::Result<()> {
+
+        let robot = self.fetch_robot_txt(&seed_url).await?;
+
+        if let Some(robot) = robot {
+            self.set_robot_txt(robot).await?;
+        }
+
         self.add_to_queue(vec![seed_url]).await?;
 
         loop {
