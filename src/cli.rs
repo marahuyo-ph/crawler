@@ -1,6 +1,6 @@
 
 use reqwest::ClientBuilder;
-use sea_orm::{ActiveModelTrait, Database};
+use sea_orm::{ActiveModelTrait, ConnectOptions, Database};
 
 use crate::{
     commands::{Cli, Commands},
@@ -14,7 +14,11 @@ pub async fn execute_commands(cli: Cli) -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Crawl(options) => {
-            let database = Database::connect(&options.database_url).await?;
+
+            let opt = ConnectOptions::new(&options.database_url)
+                .sqlx_logging(false).to_owned();
+
+            let database = Database::connect(opt).await?;
             
             // migrate
             SqliteCrawler::migrate(&database).await?;
